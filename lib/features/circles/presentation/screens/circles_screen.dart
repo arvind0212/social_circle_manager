@@ -196,7 +196,7 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
                         builder: (context, child) {
                           return ListView.builder(
                             physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.only(top: 12, bottom: 80),
+                            padding: const EdgeInsets.only(top: 12, bottom: 96),
                             itemCount: _circles.length,
                             itemBuilder: (context, index) {
                               // Staggered animation effect
