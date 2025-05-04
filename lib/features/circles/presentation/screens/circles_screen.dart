@@ -315,7 +315,10 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const CreateCircleDialog(),
+      builder: (context) => Theme(
+        data: Theme.of(context),
+        child: const CreateCircleDialog(),
+      ),
     );
   }
 } 

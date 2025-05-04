@@ -60,47 +60,50 @@ class _CreateCircleDialogState extends State<CreateCircleDialog> with SingleTick
                       curve: Curves.easeOutQuint,
                     ),
                   ),
-                  child: Dialog(
-                    backgroundColor: Colors.transparent,
-                    insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                    child: ShadCard(
-                      width: MediaQuery.of(context).size.width > 600 
-                          ? 600 
-                          : MediaQuery.of(context).size.width - 40,
-                      height: MediaQuery.of(context).size.height * 0.85,
-                      padding: EdgeInsets.zero,
-                      backgroundColor: ShadTheme.of(context).colorScheme.background,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildHeader(context, provider),
-                          _buildStepIndicator(context, provider),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.all(0),
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 300),
-                                transitionBuilder: (Widget child, Animation<double> animation) {
-                                  return FadeTransition(
-                                    opacity: animation,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: provider.currentStep > _getKeyValue(child) 
-                                            ? const Offset(-0.1, 0) 
-                                            : const Offset(0.1, 0),
-                                        end: Offset.zero,
-                                      ).animate(animation),
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                child: _getStepContent(provider.currentStep),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                      child: ShadCard(
+                        width: MediaQuery.of(context).size.width > 600 
+                            ? 600 
+                            : MediaQuery.of(context).size.width - 40,
+                        height: MediaQuery.of(context).size.height * 0.85,
+                        padding: EdgeInsets.zero,
+                        backgroundColor: ShadTheme.of(context).colorScheme.background,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildHeader(context, provider),
+                            _buildStepIndicator(context, provider),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                padding: const EdgeInsets.all(0),
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  transitionBuilder: (Widget child, Animation<double> animation) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: provider.currentStep > _getKeyValue(child) 
+                                              ? const Offset(-0.1, 0) 
+                                              : const Offset(0.1, 0),
+                                          end: Offset.zero,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: _getStepContent(provider.currentStep),
+                                ),
                               ),
                             ),
-                          ),
-                          _buildFooter(context, provider),
-                        ],
+                            _buildFooter(context, provider),
+                          ],
+                        ),
                       ),
                     ),
                   ),

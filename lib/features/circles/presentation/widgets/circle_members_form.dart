@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import '../../domain/models/circle_creation_model.dart';
 import '../providers/circle_creation_provider.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -18,6 +20,8 @@ class CircleMembersForm extends StatefulWidget {
 class _CircleMembersFormState extends State<CircleMembersForm> {
   final TextEditingController _memberController = TextEditingController();
   final GlobalKey<ShadFormState> _formKey = GlobalKey<ShadFormState>();
+  bool _isLoadingContacts = false;
+  List<Contact> _contacts = [];
   
   @override
   void dispose() {
@@ -335,108 +339,242 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
     HapticFeedback.lightImpact();
   }
   
-  void _handleContactsAccess() {
+  Future<void> _handleContactsAccess() async {
+    // Request contacts permission
+    final permissionStatus = await Permission.contacts.request();
+    
+    if (permissionStatus.isGranted) {
+      // If permission is granted, fetch contacts
+      await _fetchContacts();
+    } else if (permissionStatus.isPermanentlyDenied) {
+      // If permanently denied, take user to app settings
+      _showPermissionPermanentlyDeniedDialog();
+    } else {
+      // If denied, show explanation dialog
+      _showPermissionDeniedDialog();
+    }
+  }
+  
+  Future<void> _fetchContacts() async {
     final theme = ShadTheme.of(context);
     
-    // In a real app, this would request contacts permission and show contacts picker
-    // For this demo, we'll show a dialog with mock contacts
-    showShadDialog(
-      context: context,
-      builder: (context) => ShadDialog(
-        title: const Text('Select Contacts'),
-        description: const Text('Choose contacts to add to your circle.'),
-        child: SizedBox(
-          width: double.infinity,
-          height: 300,
-          child: _buildMockContactsList(),
+    try {
+      setState(() {
+        _isLoadingContacts = true;
+      });
+      
+      // Get contacts with email addresses
+      final contacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withPhoto: true,
+        withThumbnail: true,
+      );
+      
+      // Filter contacts to only include those with emails
+      final contactsWithEmail = contacts.where((contact) => 
+        contact.emails.isNotEmpty
+      ).toList();
+      
+      // Sort contacts by name manually
+      contactsWithEmail.sort((a, b) => a.displayName.compareTo(b.displayName));
+      
+      setState(() {
+        _contacts = contactsWithEmail;
+        _isLoadingContacts = false;
+      });
+      
+      // Show contacts picker dialog
+      _showContactsPickerDialog();
+    } catch (e) {
+      setState(() {
+        _isLoadingContacts = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: theme.colorScheme.destructive,
+          content: Text('Failed to load contacts: ${e.toString()}'),
         ),
-        actions: [
-          ShadButton.outline(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+      );
+    }
+  }
+  
+  void _showContactsPickerDialog() {
+    final provider = Provider.of<CircleCreationProvider>(context, listen: false);
+    final theme = ShadTheme.of(context);
+    
+    if (_contacts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: theme.colorScheme.primary,
+          content: const Text('No contacts with email addresses found.'),
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => Theme(
+        data: Theme.of(context),
+        child: ShadDialog(
+          title: const Text('Select Contacts'),
+          description: const Text('Choose contacts to add to your circle.'),
+          child: SizedBox(
+            width: double.infinity,
+            height: 300,
+            child: _isLoadingContacts
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: _contacts.length,
+                    itemBuilder: (context, index) {
+                      final contact = _contacts[index];
+                      final name = contact.displayName;
+                      final email = contact.emails.isNotEmpty 
+                          ? contact.emails.first.address 
+                          : '';
+                      
+                      if (email.isEmpty) return const SizedBox.shrink();
+                      
+                      final isAdded = provider.data.members.any(
+                        (m) => m.identifier.toLowerCase() == email.toLowerCase()
+                      );
+                      
+                      return CheckboxListTile(
+                        value: isAdded,
+                        onChanged: (selected) {
+                          HapticFeedback.lightImpact();
+                          if (selected == true && !isAdded) {
+                            provider.addMember(
+                              CircleMember(
+                                id: '${DateTime.now().millisecondsSinceEpoch}_${contact.id}',
+                                identifier: email,
+                                name: name,
+                                status: MemberStatus.pending,
+                                photoUrl: null, // In a real app, you might convert contact.photo to a URL
+                              ),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                content: Text('$name added to circle'),
+                                backgroundColor: theme.colorScheme.primary,
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          } else if (selected == false && isAdded) {
+                            final memberId = provider.data.members
+                                .firstWhere((m) => m.identifier.toLowerCase() == email.toLowerCase())
+                                .id;
+                            provider.removeMember(memberId);
+                          }
+                          
+                          setState(() {});
+                        },
+                        title: Text(
+                          name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: theme.colorScheme.foreground,
+                          ),
+                        ),
+                        subtitle: Text(
+                          email,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.mutedForeground,
+                          ),
+                        ),
+                        secondary: CircleAvatar(
+                          backgroundColor: theme.colorScheme.accent.withOpacity(0.2),
+                          child: contact.thumbnail != null
+                              ? ClipOval(
+                                  child: Image.memory(
+                                    contact.thumbnail!,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Text(
+                                  name.isNotEmpty ? name[0] : '?',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                        ),
+                      );
+                    },
+                  ),
           ),
-        ],
+          actions: [
+            ShadButton.outline(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
       ),
     );
   }
   
-  Widget _buildMockContactsList() {
-    final theme = ShadTheme.of(context);
-    final provider = Provider.of<CircleCreationProvider>(context, listen: false);
-    
-    // Mock contacts data
-    final List<Map<String, String>> mockContacts = [
-      {'name': 'John Smith', 'email': 'john.smith@example.com'},
-      {'name': 'Sarah Johnson', 'email': 'sarah.j@example.com'},
-      {'name': 'Michael Brown', 'email': 'michael.brown@example.com'},
-      {'name': 'Emily Davis', 'email': 'emily.davis@example.com'},
-      {'name': 'David Wilson', 'email': 'david.wilson@example.com'},
-      {'name': 'Olivia Miller', 'email': 'olivia.m@example.com'},
-      {'name': 'James Taylor', 'email': 'james.t@example.com'},
-      {'name': 'Sophia White', 'email': 'sophia.white@example.com'},
-    ];
-    
-    return ListView.builder(
-      itemCount: mockContacts.length,
-      itemBuilder: (context, index) {
-        final contact = mockContacts[index];
-        final name = contact['name']!;
-        final email = contact['email']!;
-        final isAdded = provider.data.members.any((m) => m.identifier.toLowerCase() == email.toLowerCase());
-        
-        return CheckboxListTile(
-          value: isAdded,
-          onChanged: (selected) {
-            HapticFeedback.lightImpact();
-            if (selected == true && !isAdded) {
-              provider.addMember(
-                CircleMember(
-                  id: DateTime.now().millisecondsSinceEpoch.toString() + index.toString(),
-                  identifier: email,
-                  name: name,
-                  status: MemberStatus.pending,
-                ),
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  content: Text('$name added to circle'),
-                  backgroundColor: theme.colorScheme.primary,
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            } else if (selected == false && isAdded) {
-              final memberId = provider.data.members
-                  .firstWhere((m) => m.identifier.toLowerCase() == email.toLowerCase())
-                  .id;
-              provider.removeMember(memberId);
-            }
-          },
-          title: Text(
-            name,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.foreground,
-            ),
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Theme(
+        data: Theme.of(context),
+        child: ShadDialog.alert(
+          title: const Text('Permission Required'),
+          description: const Text(
+            'We need access to your contacts to help you add members to your circle. '
+            'Please grant contacts permission to continue.'
           ),
-          subtitle: Text(
-            email,
-            style: TextStyle(
-              fontSize: 12,
-              color: theme.colorScheme.mutedForeground,
+          actions: [
+            ShadButton.outline(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
             ),
-          ),
-          secondary: CircleAvatar(
-            backgroundColor: theme.colorScheme.accent.withOpacity(0.2),
-            child: Text(
-              name[0],
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-              ),
+            ShadButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleContactsAccess();
+              },
+              child: const Text('Try Again'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showPermissionPermanentlyDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Theme(
+        data: Theme.of(context),
+        child: ShadDialog.alert(
+          title: const Text('Permission Required'),
+          description: const Text(
+            'Contacts permission has been permanently denied. Please go to app settings '
+            'and enable contacts permission to add members from your contacts.'
           ),
-        );
-      },
+          actions: [
+            ShadButton.outline(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ShadButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 } 
