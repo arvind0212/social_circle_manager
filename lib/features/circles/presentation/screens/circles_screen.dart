@@ -6,6 +6,7 @@ import '../../domain/models/circle_model.dart';
 import '../widgets/circle_card.dart';
 import '../widgets/empty_circles_state.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../widgets/create_circle_dialog.dart';
 
 class CirclesScreen extends StatefulWidget {
   const CirclesScreen({Key? key}) : super(key: key);
@@ -310,60 +311,11 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
     // Haptic feedback for better tactile response
     HapticFeedback.mediumImpact();
     
-    final theme = ShadTheme.of(context);
-    
-    // Show dialog or navigate to create circle screen
-    showShadDialog(
+    // Show the multi-step create circle dialog
+    showDialog(
       context: context,
-      builder: (context) => ShadDialog.alert(
-        title: Text(
-          'Create New Circle',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.foreground,
-          ),
-        ),
-        description: Text(
-          'Start a new social circle to connect and plan events with your friends, family, or colleagues.',
-          style: TextStyle(
-            fontSize: 14,
-            color: theme.colorScheme.mutedForeground,
-          ),
-        ),
-        actions: [
-          ShadButton.outline(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          ShadButton(
-            child: const Text('Create'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Handle create action
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: theme.colorScheme.primary,
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  content: const Row(
-                    children: [
-                      Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                      SizedBox(width: 12),
-                      Text(
-                        'New circle would be created here',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (context) => const CreateCircleDialog(),
     );
   }
 } 
