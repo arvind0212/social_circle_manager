@@ -7,6 +7,7 @@ import '../../../explore/presentation/screens/explore_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../../main.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
