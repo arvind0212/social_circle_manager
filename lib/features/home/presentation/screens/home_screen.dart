@@ -5,6 +5,8 @@ import '../../../circles/presentation/screens/circles_screen.dart';
 import '../../../events/presentation/screens/events_screen.dart';
 import '../../../explore/presentation/screens/explore_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../../main.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -38,10 +40,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the status bar height to avoid positioning issues with animations
-    // final statusBarHeight = MediaQuery.of(context).padding.top;
+    final theme = Provider.of<ThemeProvider>(context);
     
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Social Circle Manager'),
+        actions: [
+          // Add test button for Circle Detail screen
+          IconButton(
+            icon: const Icon(Icons.science),
+            tooltip: 'Test Circle Detail',
+            onPressed: () {
+              showTestCircleDetail(context);
+            },
+          ),
+        ],
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,

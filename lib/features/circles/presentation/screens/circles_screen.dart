@@ -7,6 +7,8 @@ import '../widgets/circle_card.dart';
 import '../widgets/empty_circles_state.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../widgets/create_circle_dialog.dart';
+import '../screens/circle_detail_screen.dart';
+import '../../../../main.dart';
 
 class CirclesScreen extends StatefulWidget {
   const CirclesScreen({Key? key}) : super(key: key);
@@ -236,6 +238,7 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
           ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: !_showEmptyState && _circles.isNotEmpty
           ? Container(
               decoration: BoxDecoration(
@@ -257,6 +260,7 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
                 borderRadius: BorderRadius.circular(28),
               ),
               child: FloatingActionButton(
+                heroTag: null,
                 elevation: 0,
                 backgroundColor: Colors.transparent,
                 onPressed: _handleCreateCircle,
@@ -277,34 +281,19 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
   }
 
   void _handleCircleTap(Circle circle) {
+    print('DEBUG: _handleCircleTap entered for ${circle.name}');
     // Haptic feedback for better tactile response
     HapticFeedback.lightImpact();
-    
-    // Navigate to circle details screen
-    print('Tapped on circle: ${circle.name}');
-    
-    // Show a toast for demo purposes
-    final theme = ShadTheme.of(context);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: theme.colorScheme.primary,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.white, size: 18),
-            const SizedBox(width: 12),
-            Text(
-              'Opening ${circle.name}',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 1),
+
+    // Navigate to circle details screen, passing the selected circle
+    print('DEBUG: Attempting Navigator.push...');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CircleDetailScreen(circle: circle),
       ),
     );
+    print('DEBUG: Navigator.push executed.');
   }
 
   void _handleCreateCircle() {
