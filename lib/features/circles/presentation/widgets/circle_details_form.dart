@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -17,7 +19,7 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
   final GlobalKey<ShadFormState> _formKey = GlobalKey<ShadFormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  
+
   // Default icons for selection
   final List<IconData> _defaultIcons = [
     Icons.groups_rounded,
@@ -33,16 +35,17 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
     Icons.book_rounded,
     Icons.favorite_rounded,
   ];
-  
+
   // Currently selected icon
   IconData? _selectedIcon;
-  
+
   @override
   void initState() {
     super.initState();
     // Initialize form with current data
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<CircleCreationProvider>(context, listen: false);
+      final provider =
+          Provider.of<CircleCreationProvider>(context, listen: false);
       _nameController.text = provider.data.name;
       _descriptionController.text = provider.data.description;
       setState(() {
@@ -50,7 +53,7 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
       });
     });
   }
-  
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -61,7 +64,7 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
@@ -69,9 +72,9 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
         children: [
           // Preview of circle avatar
           _buildCirclePreview(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Form fields
           ShadForm(
             key: _formKey,
@@ -88,9 +91,7 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
                         .updateBasicDetails(name: value);
                   },
                 ),
-                
                 const SizedBox(height: 20),
-                
                 Text(
                   'Circle Icon',
                   style: TextStyle(
@@ -99,18 +100,15 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
                     color: theme.colorScheme.foreground,
                   ),
                 ),
-                
                 const SizedBox(height: 8),
-                
                 _buildIconSelector(),
-                
                 const SizedBox(height: 20),
-                
                 ShadInputFormField(
                   controller: _descriptionController,
                   id: 'circle-description',
                   label: const Text('Description'),
-                  placeholder: const Text('What is this circle for? (optional)'),
+                  placeholder:
+                      const Text('What is this circle for? (optional)'),
                   maxLength: 200,
                   minLines: 3,
                   maxLines: 5,
@@ -126,20 +124,21 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
       ),
     );
   }
-  
+
   Widget _buildCirclePreview() {
     final theme = ShadTheme.of(context);
     final provider = Provider.of<CircleCreationProvider>(context);
-    
+
     // Get initials if name exists
     String initials = '';
     if (_nameController.text.isNotEmpty) {
-      initials = _nameController.text.split(' ')
+      initials = _nameController.text
+          .split(' ')
           .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
           .join('')
           .substring(0, _nameController.text.split(' ').length > 1 ? 2 : 1);
     }
-    
+
     return Center(
       child: Container(
         width: 100,
@@ -160,9 +159,10 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
           ],
         ),
         child: ClipOval(
-          child: provider.data.isUsingCustomImage && provider.data.customIconImage != null
+          child: provider.data.isUsingCustomImage &&
+                  provider.data.customIconImage != null
               ? Image.file(
-                  provider.data.customIconImage!,
+                  provider.data.customIconImage! as File,
                   fit: BoxFit.cover,
                 )
               : Center(
@@ -189,18 +189,18 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
                 ),
         ),
       ).animate().scale(
-        begin: const Offset(0.8, 0.8),
-        end: const Offset(1.0, 1.0),
-        duration: 600.ms,
-        curve: Curves.elasticOut,
-      ),
+            begin: const Offset(0.8, 0.8),
+            end: const Offset(1.0, 1.0),
+            duration: 600.ms,
+            curve: Curves.elasticOut,
+          ),
     );
   }
-  
+
   Widget _buildIconSelector() {
     final theme = ShadTheme.of(context);
     final provider = Provider.of<CircleCreationProvider>(context);
-    
+
     return Container(
       height: 140,
       decoration: BoxDecoration(
@@ -260,11 +260,12 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
               ),
             );
           }
-          
+
           // Icon selection option
           final icon = _defaultIcons[index];
-          final isSelected = _selectedIcon == icon && !provider.data.isUsingCustomImage;
-          
+          final isSelected =
+              _selectedIcon == icon && !provider.data.isUsingCustomImage;
+
           return InkWell(
             onTap: () {
               setState(() {
@@ -299,25 +300,26 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
               ),
             ),
           ).animate().scale(
-            begin: const Offset(0, 0),
-            end: const Offset(1, 1),
-            duration: 400.ms,
-            delay: (50 * index).ms,
-            curve: Curves.easeOutBack,
-          );
+                begin: const Offset(0, 0),
+                end: const Offset(1, 1),
+                duration: 400.ms,
+                delay: (50 * index).ms,
+                curve: Curves.easeOutBack,
+              );
         },
       ),
     );
   }
-  
+
   void _showImageSourceDialog() {
     final theme = ShadTheme.of(context);
-    
+
     showShadDialog(
       context: context,
       builder: (context) => ShadDialog.alert(
         title: const Text('Choose Image Source'),
-        description: const Text('Select where you want to get your circle image from.'),
+        description:
+            const Text('Select where you want to get your circle image from.'),
         actions: [
           ShadButton.outline(
             onPressed: () {
@@ -361,10 +363,10 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
       ),
     );
   }
-  
+
   void _showImageUnavailableMessage(String source) {
     final theme = ShadTheme.of(context);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -387,4 +389,4 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
       ),
     );
   }
-} 
+}

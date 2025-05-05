@@ -68,7 +68,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 itemBuilder: (context, index) {
                   final category = _categories[index];
                   final isSelected = category == _selectedCategory;
-                  
+
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: GestureDetector(
@@ -78,19 +78,28 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
                         decoration: BoxDecoration(
-                          color: isSelected ? ThemeProvider.secondaryPurple.withOpacity(0.2) : Colors.transparent,
+                          color: isSelected
+                              ? ThemeProvider.secondaryPurple.withOpacity(0.2)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected ? ThemeProvider.secondaryPurple : Colors.grey.shade300,
+                            color: isSelected
+                                ? ThemeProvider.secondaryPurple
+                                : Colors.grey.shade300,
                           ),
                         ),
                         child: Text(
                           category,
                           style: TextStyle(
-                            color: isSelected ? ThemeProvider.secondaryPurple : Colors.grey.shade700,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            color: isSelected
+                                ? ThemeProvider.secondaryPurple
+                                : Colors.grey.shade700,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -112,9 +121,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   ),
                   const SizedBox(height: 12),
                   _buildAIRecommendations(),
-                  
                   const SizedBox(height: 24),
-                  
                   const _SectionTitle(
                     title: 'Popular This Week',
                     subtitle: 'Trending activities nearby',
@@ -171,8 +178,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: Text('\$\$\$'),
               ),
             ],
-            selectedOptionsBuilder: (context, values) => 
-              Text(values.isEmpty ? 'Select budget' : values.map((v) => v == 'low' ? '\$' : v == 'medium' ? '\$\$' : '\$\$\$').join(', ')),
+            selectedOptionsBuilder: (context, values) => Text(values.isEmpty
+                ? 'Select budget'
+                : values
+                    .map((v) => v == 'low'
+                        ? '\$'
+                        : v == 'medium'
+                            ? '\$\$'
+                            : '\$\$\$')
+                    .join(', ')),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -202,12 +216,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: Text('Anywhere in the city'),
               ),
             ],
-            selectedOptionBuilder: (context, value) => Text(
-              value == 'walking' ? 'Walking distance (1 mile)' :
-              value == 'biking' ? 'Biking distance (3 miles)' :
-              value == 'driving' ? 'Short drive (5 miles)' :
-              'Anywhere in the city'
-            ),
+            selectedOptionBuilder: (context, value) => Text(value == 'walking'
+                ? 'Walking distance (1 mile)'
+                : value == 'biking'
+                    ? 'Biking distance (3 miles)'
+                    : value == 'driving'
+                        ? 'Short drive (5 miles)'
+                        : 'Anywhere in the city'),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -268,11 +283,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     height: 100,
                     decoration: BoxDecoration(
                       color: ThemeProvider.secondaryPurple.withOpacity(0.2),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(6)),
                     ),
                     child: Center(
                       child: Icon(
-                        _getIconForImage(item['image']),
+                        _getIconForImage(item['image'] as String),
                         size: 42,
                         color: ThemeProvider.secondaryPurple.withOpacity(0.7),
                       ),
@@ -284,7 +300,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['title'],
+                          item['title'] as String,
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
@@ -292,7 +308,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          item['location'],
+                          item['location'] as String,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey.shade600,
@@ -304,7 +320,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             ShadBadge(
                               backgroundColor: Colors.transparent,
                               child: Text(
-                                item['price'],
+                                item['price'] as String,
                                 style: TextStyle(
                                   color: Colors.grey.shade700,
                                 ),
@@ -312,9 +328,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             ),
                             const SizedBox(width: 6),
                             ShadBadge(
-                              backgroundColor: ThemeProvider.secondaryPurple.withOpacity(0.2),
+                              backgroundColor: ThemeProvider.secondaryPurple
+                                  .withOpacity(0.2),
                               child: Text(
-                                item['tags'][0],
+                                item['tags'][0] as String,
                                 style: TextStyle(
                                   color: ThemeProvider.secondaryPurple,
                                 ),
@@ -328,7 +345,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ],
               ),
             ),
-          ).animate(delay: (50 * index).ms).fadeIn(duration: 300.ms).slideX(begin: 0.1, end: 0);
+          )
+              .animate(delay: (50 * index).ms)
+              .fadeIn(duration: 300.ms)
+              .slideX(begin: 0.1, end: 0);
         },
       ),
     );
@@ -374,7 +394,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     ),
                     child: Center(
                       child: Icon(
-                        _getIconForTitle(activity['title']),
+                        _getIconForTitle(activity['title'] as String),
                         color: ThemeProvider.primaryBlue,
                         size: 28,
                       ),
@@ -386,7 +406,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          activity['title'],
+                          activity['title'] as String,
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
@@ -394,7 +414,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          activity['location'],
+                          activity['location'] as String,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey.shade600,
@@ -418,7 +438,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              activity['price'],
+                              activity['price'] as String,
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -489,14 +509,16 @@ class _SectionTitle extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isAI 
+            color: isAI
                 ? ThemeProvider.secondaryPurple.withOpacity(0.1)
                 : ThemeProvider.primaryBlue.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: isAI ? ThemeProvider.secondaryPurple : ThemeProvider.primaryBlue,
+            color: isAI
+                ? ThemeProvider.secondaryPurple
+                : ThemeProvider.primaryBlue,
             size: 20,
           ),
         ),
@@ -525,4 +547,4 @@ class _SectionTitle extends StatelessWidget {
       ],
     );
   }
-} 
+}
