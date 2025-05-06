@@ -484,20 +484,6 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title with blue color that matches the image
-          Text(
-            'Circle Overview',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
-              letterSpacing: -0.5,
-            ),
-          ).animate()
-            .fadeIn(duration: 400.ms, delay: 500.ms),
-          
-          const SizedBox(height: 16),
-          
           // More compact grid with subtle background color
           Container(
             decoration: BoxDecoration(

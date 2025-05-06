@@ -44,23 +44,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Provider.of<ThemeProvider>(context);
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Social Circle Manager'),
-        actions: [
-          // Add test button for Circle Detail screen
-          IconButton(
-            icon: const Icon(Icons.science),
-            tooltip: 'Test Circle Detail',
-            onPressed: () {
-              showTestCircleDetail(context);
-            },
-          ),
-        ],
+      // Removing AppBar completely
+      body: SafeArea(
+        // Remove extra padding at the top
+        top: false,
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ).animate().fadeIn(duration: 300.ms),
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ).animate().fadeIn(duration: 300.ms),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onItemSelected: _onItemSelected,

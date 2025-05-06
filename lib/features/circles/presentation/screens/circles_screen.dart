@@ -56,106 +56,14 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
+    final statusBarHeight = MediaQuery.of(context).viewPadding.top;
     
     return Scaffold(
       // Subtle gradient background
       backgroundColor: theme.colorScheme.background,
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            // App Logo/Icon
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.people_alt_rounded,
-                color: theme.colorScheme.primary,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Title with refined typography
-            Text(
-              'Your Circles',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.foreground,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        actions: [
-          // Search button with improved styling
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.accent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.search_rounded,
-                color: theme.colorScheme.foreground,
-                size: 20,
-              ),
-              onPressed: () {
-                // Implement search functionality
-              },
-            ),
-          ),
-          // Filter button with improved styling
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.accent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.tune_rounded,
-                color: theme.colorScheme.foreground,
-                size: 20,
-              ),
-              onPressed: () {
-                // Implement filter functionality
-              },
-            ),
-          ),
-          // Demo toggle button with improved styling
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: _showEmptyState 
-                  ? theme.colorScheme.destructive.withOpacity(0.1)
-                  : theme.colorScheme.accent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(
-                _showEmptyState ? Icons.visibility_off : Icons.visibility,
-                color: _showEmptyState 
-                    ? theme.colorScheme.destructive 
-                    : theme.colorScheme.foreground,
-                size: 20,
-              ),
-              onPressed: () {
-                setState(() {
-                  _showEmptyState = !_showEmptyState;
-                });
-              },
-            ),
-          ),
-        ],
-      ),
+      // Remove the standard AppBar and replace with a custom header
+      appBar: null,
       body: Stack(
         children: [
           // Subtle gradient background
@@ -186,8 +94,122 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
             ),
           ),
           
+          // Custom header area
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.fromLTRB(16, statusBarHeight + 16, 16, 16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.background.withOpacity(0.8),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.foreground.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // App Logo/Icon
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.people_alt_rounded,
+                      color: theme.colorScheme.primary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Title with refined typography
+                  Text(
+                    'Your Circles',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.foreground,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Search button with improved styling
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.accent.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.search_rounded,
+                        color: theme.colorScheme.foreground,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        // Implement search functionality
+                      },
+                    ),
+                  ),
+                  // Filter button with improved styling
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.accent.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.tune_rounded,
+                        color: theme.colorScheme.foreground,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        // Implement filter functionality
+                      },
+                    ),
+                  ),
+                  // Demo toggle button with improved styling
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _showEmptyState 
+                          ? theme.colorScheme.destructive.withOpacity(0.1)
+                          : theme.colorScheme.accent.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        _showEmptyState ? Icons.visibility_off : Icons.visibility,
+                        color: _showEmptyState 
+                            ? theme.colorScheme.destructive 
+                            : theme.colorScheme.foreground,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showEmptyState = !_showEmptyState;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.2, end: 0),
+          
           // Main content
-          SafeArea(
+          Padding(
+            // Add padding to account for the custom header
+            padding: EdgeInsets.only(top: statusBarHeight + 80),
             child: _showEmptyState || _circles.isEmpty
                 ? EmptyCirclesState(
                     onCreateCircle: _handleCreateCircle,
