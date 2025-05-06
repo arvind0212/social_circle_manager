@@ -53,6 +53,8 @@ dependencies:
   # Animations
   flutter_animate: any
   pretty_animated_text: ^2.0.0
+  flutter_staggered_grid_view: ^0.7.0
+  image_picker: ^1.1.2
   
   # Internationalization
   # intl: ^0.20.2 # Removed explicit dependency - shadcn_ui brings in ^0.19.0

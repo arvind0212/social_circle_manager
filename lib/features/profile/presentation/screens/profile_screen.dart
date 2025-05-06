@@ -1,289 +1,270 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import '../../../../core/theme/app_theme.dart';
 
-class ProfileScreen extends StatelessWidget {
+import '../../../../core/theme/app_theme.dart';
+import 'edit_profile_screen.dart';
+import 'calendar_integration_screen.dart';
+
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        backgroundColor: ThemeProvider.primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  File? _avatarFile;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickFromGallery() async {
+    final XFile? pic = await _picker.pickImage(source: ImageSource.gallery);
+    if (pic != null) {
+      setState(() => _avatarFile = File(pic.path));
+      // TODO: upload avatar to backend
+    }
+  }
+
+  void _showAvatarPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShadButton(
+              leading: const Icon(Icons.photo_library_outlined),
+              onPressed: () {
+                Navigator.pop(context);
+                _pickFromGallery();
+              },
+              child: const Text('Pick from gallery'),
+            ),
+            ShadButton.ghost(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _goEdit() => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+  );
+
+  void _goCalendar() => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const CalendarIntegrationScreen()),
+  );
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (_) => ShadDialog.alert(
+        title: const Text('Delete Account'),
+        description: const Text('This action cannot be undone. Continue?'),
         actions: [
-          IconButton(
+          ShadButton.ghost(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ShadButton.destructive(
             onPressed: () {
-              // Navigate to settings
+              Navigator.pop(context);
+              // TODO: perform account deletion
             },
-            icon: const Icon(Icons.settings_outlined),
+            child: const Text('Delete'),
           ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildProfileHeader(),
-            const SizedBox(height: 24),
-            
-            ..._buildMenuSection('Account', [
-              _MenuItem(
-                icon: Icons.person_outline,
-                title: 'Edit Profile',
-                onTap: () {
-                  // Navigate to edit profile
-                },
-              ),
-              _MenuItem(
-                icon: Icons.calendar_today_outlined,
-                title: 'Calendar Integration',
-                onTap: () {
-                  // Navigate to calendar settings
-                },
-              ),
-              _MenuItem(
-                icon: Icons.contacts_outlined,
-                title: 'Contact Sync',
-                onTap: () {
-                  // Navigate to contacts settings
-                },
-              ),
-            ]),
-            
-            const SizedBox(height: 24),
-            
-            ..._buildMenuSection('Preferences', [
-              _MenuItem(
-                icon: Icons.notifications_outlined,
-                title: 'Notifications',
-                onTap: () {
-                  // Navigate to notifications settings
-                },
-              ),
-              _MenuItem(
-                icon: Icons.lock_outline,
-                title: 'Privacy & Security',
-                onTap: () {
-                  // Navigate to privacy settings
-                },
-              ),
-              _MenuItem(
-                icon: Icons.dark_mode_outlined,
-                title: 'Theme',
-                trailing: ShadSwitch(
-                  value: Theme.of(context).brightness == Brightness.dark,
-                  onChanged: (value) {
-                    // Toggle theme
-                  },
+    );
+  }
+
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (_) => ShadDialog.alert(
+        title: const Text('Log out'),
+        description: const Text('Are you sure you want to log out?'),
+        actions: [
+          ShadButton.ghost(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ShadButton.ghost(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: perform logout
+            },
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShadTheme.of(context);
+    const name = 'Taylor Smith';
+    const email = 'taylor.smith@example.com';
+    final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+
+    return Scaffold(
+      backgroundColor: theme.colorScheme.background,
+      extendBodyBehindAppBar: true,
+      appBar: null,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenHeight = constraints.maxHeight;
+          final statusBarHeight = MediaQuery.of(context).viewPadding.top;
+          final width = constraints.maxWidth;
+          final hPadding = width < 600 ? 12.0 : 20.0;
+          return Stack(
+            children: [
+              // Base background color
+              Container(color: theme.colorScheme.background),
+              // Subtle decorative circle
+              Positioned(
+                top: -screenHeight * 0.1,
+                right: -screenHeight * 0.1,
+                child: Container(
+                  width: screenHeight * 0.4,
+                  height: screenHeight * 0.4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: ThemeProvider.successGreen.withOpacity(0.05),
+                  ),
                 ),
               ),
-            ]),
-            
-            const SizedBox(height: 24),
-            
-            ..._buildMenuSection('Help & Support', [
-              _MenuItem(
-                icon: Icons.help_outline,
-                title: 'Help Center',
-                onTap: () {
-                  // Navigate to help
-                },
-              ),
-              _MenuItem(
-                icon: Icons.feedback_outlined,
-                title: 'Send Feedback',
-                onTap: () {
-                  // Navigate to feedback
-                },
-              ),
-              _MenuItem(
-                icon: Icons.bug_report_outlined,
-                title: 'Report a Bug',
-                onTap: () {
-                  // Navigate to bug report
-                },
-              ),
-            ]),
-            
-            const SizedBox(height: 24),
-            
-            ShadButton.destructive(
-              onPressed: () {
-                // Logout confirmation
-                showDialog(
-                  context: context,
-                  builder: (context) => ShadDialog.alert(
-                    title: const Text('Log out'),
-                    description: const Text('Are you sure you want to log out?'),
-                    actions: [
-                      ShadButton.ghost(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+              // Header row
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPadding, statusBarHeight + 16, hPadding, 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: ThemeProvider.successGreen.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.person_outline,
+                          color: ThemeProvider.successGreen,
+                          size: 26,
+                        ),
                       ),
-                      ShadButton.destructive(
-                        onPressed: () {
-                          // Perform logout
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Log out'),
+                      const SizedBox(width: 14),
+                      Text(
+                        'My Profile',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.foreground,
+                          letterSpacing: -0.5,
+                        ),
                       ),
+                      const Spacer(),
                     ],
                   ),
-                );
-              },
-              child: const Text('Log out'),
-            ).animate().fadeIn(duration: 600.ms),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileHeader() {
-    return ShadCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const CircleAvatar(
-              radius: 48,
-              backgroundColor: Colors.grey,
-              backgroundImage: null, // Add user image when available
-              child: Text(
-                'TS',
-                style: TextStyle(
-                  fontSize: 32,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                ),
+              ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2, end: 0),
+              // Main content below header
+              Positioned.fill(
+                top: statusBarHeight + 80,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                  children: [
+                    Center(
+                      child: GestureDetector(
+                        onTap: _showAvatarPicker,
+                        child: Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: _avatarFile != null
+                              ? Image.file(_avatarFile!, fit: BoxFit.cover)
+                              : ShadAvatar(
+                                  'https://app.requestly.io/delay/2000/avatars.githubusercontent.com/u/124599?v=4',
+                                  placeholder: Text(
+                                    initials,
+                                    style: theme.textTheme.h2.copyWith(color: Colors.white),
+                                  ),
+                                ),
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(duration: 500.ms),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: Text(email, style: TextStyle(color: theme.colorScheme.mutedForeground)),
+                    ),
+                    const SizedBox(height: 24),
+                    ShadCard(
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.edit_outlined, color: ThemeProvider.successGreen),
+                            title: const Text('Edit Profile'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: _goEdit,
+                          ),
+                          Divider(height: 1, indent: 56, endIndent: 16, color: theme.colorScheme.border),
+                          ListTile(
+                            leading: const Icon(Icons.calendar_today_outlined, color: ThemeProvider.successGreen),
+                            title: const Text('Calendar Integration'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: _goCalendar,
+                          ),
+                          Divider(height: 1, indent: 56, endIndent: 16, color: theme.colorScheme.border),
+                          ListTile(
+                            leading: const Icon(Icons.contacts_outlined, color: ThemeProvider.successGreen),
+                            title: const Text('Contact Sync'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {},
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
+                    const SizedBox(height: 24),
+                    ShadButton.destructive(onPressed: _confirmDelete, child: const Text('Delete Account'))
+                      .animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                    const SizedBox(height: 12),
+                    ShadButton.ghost(onPressed: _confirmLogout, child: const Text('Log out'))
+                      .animate().fadeIn(duration: 500.ms, delay: 300.ms),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Taylor Smith',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'taylor.smith@example.com',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildStatItem('Circles', '4'),
-                _buildDivider(),
-                _buildStatItem('Events', '12'),
-                _buildDivider(),
-                _buildStatItem('Joined', 'Mar 2023'),
-              ],
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
-    ).animate().fadeIn(duration: 500.ms).slideY(begin: -0.1, end: 0);
-  }
-
-  Widget _buildDivider() {
-    return Container(
-      height: 24,
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      color: Colors.grey.shade300,
     );
   }
-
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14,
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildMenuSection(String title, List<_MenuItem> items) {
-    return [
-      Padding(
-        padding: const EdgeInsets.only(left: 16, bottom: 8),
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: Colors.grey,
-          ),
-        ),
-      ),
-      ShadCard(
-        child: Column(
-          children: List.generate(
-            items.length,
-            (index) {
-              final item = items[index];
-              final isLast = index == items.length - 1;
-              
-              return Column(
-                children: [
-                  ListTile(
-                    leading: Icon(
-                      item.icon,
-                      color: ThemeProvider.primaryBlue,
-                    ),
-                    title: Text(item.title),
-                    trailing: item.trailing ?? (item.onTap != null ? const Icon(Icons.chevron_right) : null),
-                    onTap: item.onTap,
-                  ),
-                  if (!isLast)
-                    Divider(
-                      height: 1,
-                      indent: 56,
-                      endIndent: 16,
-                      color: Colors.grey.shade200,
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-      ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
-    ];
-  }
-}
-
-class _MenuItem {
-  final IconData icon;
-  final String title;
-  final Function()? onTap;
-  final Widget? trailing;
-
-  _MenuItem({
-    required this.icon,
-    required this.title,
-    this.onTap,
-    this.trailing,
-  });
 } 

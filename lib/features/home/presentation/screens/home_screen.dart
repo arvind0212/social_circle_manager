@@ -8,6 +8,7 @@ import '../../../explore/presentation/screens/explore_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../../main.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -42,23 +43,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Social Circle Manager'),
-        actions: [
-          // Add test button for Circle Detail screen
-          IconButton(
-            icon: const Icon(Icons.science),
-            tooltip: 'Test Circle Detail',
-            onPressed: () {
-              showTestCircleDetail(context);
-            },
-          ),
-        ],
+      // Removing AppBar completely
+      body: SafeArea(
+        // Remove extra padding at the top
+        top: false,
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ).animate().fadeIn(duration: 300.ms),
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ).animate().fadeIn(duration: 300.ms),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onItemSelected: _onItemSelected,
