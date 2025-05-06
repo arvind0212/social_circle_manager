@@ -57,27 +57,20 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
     final theme = ShadTheme.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
     final statusBarHeight = MediaQuery.of(context).viewPadding.top;
+    // Calculate horizontal padding like Events screen
+    final width = MediaQuery.of(context).size.width;
+    final hPadding = width < 600 ? 12.0 : 20.0;
     
     return Scaffold(
-      // Subtle gradient background
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
       // Remove the standard AppBar and replace with a custom header
       appBar: null,
       body: Stack(
         children: [
-          // Subtle gradient background
+          // White background with light blue hint
           Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  theme.colorScheme.background,
-                  theme.colorScheme.accent.withOpacity(0.05),
-                ],
-              ),
-            ),
+            color: theme.colorScheme.background,
           ),
           
           // Decorative pattern element
@@ -99,106 +92,44 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
             top: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: EdgeInsets.fromLTRB(16, statusBarHeight + 16, 16, 16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.background.withOpacity(0.8),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.foreground.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(hPadding, statusBarHeight + 16, hPadding, 16),
               child: Row(
                 children: [
                   // App Logo/Icon
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
+                      color: ThemeProvider.primaryBlue.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
                       Icons.people_alt_rounded,
-                      color: theme.colorScheme.primary,
-                      size: 22,
+                      color: ThemeProvider.primaryBlue,
+                      size: 26,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   // Title with refined typography
                   Text(
-                    'Your Circles',
+                    'Circles',
                     style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
                       color: theme.colorScheme.foreground,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const Spacer(),
-                  // Search button with improved styling
-                  Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.accent.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.search_rounded,
-                        color: theme.colorScheme.foreground,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        // Implement search functionality
-                      },
-                    ),
-                  ),
-                  // Filter button with improved styling
-                  Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.accent.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.tune_rounded,
-                        color: theme.colorScheme.foreground,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        // Implement filter functionality
-                      },
-                    ),
-                  ),
-                  // Demo toggle button with improved styling
                   Container(
                     decoration: BoxDecoration(
-                      color: _showEmptyState 
-                          ? theme.colorScheme.destructive.withOpacity(0.1)
-                          : theme.colorScheme.accent.withOpacity(0.1),
-                      shape: BoxShape.circle,
+                      color: theme.colorScheme.muted.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: IconButton(
-                      icon: Icon(
-                        _showEmptyState ? Icons.visibility_off : Icons.visibility,
-                        color: _showEmptyState 
-                            ? theme.colorScheme.destructive 
-                            : theme.colorScheme.foreground,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _showEmptyState = !_showEmptyState;
-                        });
-                      },
+                      icon: Icon(Icons.search_rounded, size: 22),
+                      color: theme.colorScheme.foreground,
+                      onPressed: () => HapticFeedback.lightImpact(),
                     ),
                   ),
                 ],
@@ -206,55 +137,35 @@ class _CirclesScreenState extends State<CirclesScreen> with SingleTickerProvider
             ),
           ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.2, end: 0),
           
-          // Main content
-          Padding(
-            // Add padding to account for the custom header
-            padding: EdgeInsets.only(top: statusBarHeight + 80),
+          // Main content positioned below header
+          Positioned.fill(
+            top: statusBarHeight + 80,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: _showEmptyState || _circles.isEmpty
-                ? EmptyCirclesState(
-                    onCreateCircle: _handleCreateCircle,
-                  )
+                ? EmptyCirclesState(onCreateCircle: _handleCreateCircle)
                 : _animationController == null
                     ? const Center(child: CircularProgressIndicator())
-                    : AnimatedBuilder(
-                        animation: _animationController!,
-                        builder: (context, child) {
-                          return ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.only(top: 12, bottom: 96),
-                            itemCount: _circles.length,
-                            itemBuilder: (context, index) {
-                              // Staggered animation effect
-                              final animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-                                CurvedAnimation(
-                                  parent: _animationController!,
-                                  curve: Interval(
-                                    (index * 0.1).clamp(0.0, 0.9),
-                                    ((index + 1) * 0.1).clamp(0.1, 1.0),
-                                    curve: Curves.easeOut,
-                                  ),
-                                ),
-                              );
-                              
-                              final circle = _circles[index];
-                              return AnimatedBuilder(
-                                animation: animation,
-                                builder: (context, child) {
-                                  return Opacity(
-                                    opacity: animation.value,
-                                    child: Transform.translate(
-                                      offset: Offset(0, 20 * (1 - animation.value)),
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                child: CircleCard(
-                                  circle: circle,
-                                  onTap: () => _handleCircleTap(circle),
-                                ),
-                              );
-                            },
-                          );
+                    : GridView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(hPadding, 12.0, hPadding, 12.0),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.8,
+                        ),
+                        itemCount: _circles.length,
+                        itemBuilder: (context, index) {
+                          final circle = _circles[index];
+                          return CircleCard(
+                            circle: circle,
+                            onTap: () => _handleCircleTap(circle),
+                          ).animate(delay: (80 * index).ms)
+                            .fadeIn(duration: 400.ms)
+                            .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic)
+                            .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1), duration: 600.ms, curve: Curves.easeOutBack);
                         },
                       ),
           ),
