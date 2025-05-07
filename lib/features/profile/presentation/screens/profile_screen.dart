@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import 'edit_profile_screen.dart';
@@ -20,11 +21,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _avatarFile;
   final ImagePicker _picker = ImagePicker();
 
+  String? _fullName;
+  String? _email;
+  String? _avatarUrl;
+  bool _isLoading = true;
+  String _initials = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileData();
+  }
+
+  Future<void> _fetchProfileData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser == null) {
+        if (mounted) Navigator.of(context).pushReplacementNamed('/login');
+        return;
+      }
+
+      _email = currentUser.email;
+
+      final profileResponse = await Supabase.instance.client
+          .from('user_profiles')
+          .select('full_name, avatar_url')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          if (profileResponse != null) {
+            _fullName = profileResponse['full_name'] as String?;
+            _avatarUrl = profileResponse['avatar_url'] as String?;
+          }
+          _updateInitials();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ShadToaster.of(context).show(
+          ShadToast.destructive(
+            title: const Text('Error'),
+            description: Text('Failed to fetch profile data: ${e.toString()}'),
+          )
+        );
+      }
+    }
+  }
+  
+  void _updateInitials() {
+    if (_fullName != null && _fullName!.isNotEmpty) {
+      _initials = _fullName!
+          .split(' ')
+          .where((s) => s.isNotEmpty)
+          .map((s) => s[0].toUpperCase())
+          .take(2)
+          .join();
+    } else if (_email != null && _email!.isNotEmpty) {
+      _initials = _email![0].toUpperCase();
+    } else {
+      _initials = '';
+    }
+  }
+
   Future<void> _pickFromGallery() async {
     final XFile? pic = await _picker.pickImage(source: ImageSource.gallery);
     if (pic != null) {
-      setState(() => _avatarFile = File(pic.path));
-      // TODO: upload avatar to backend
+      _goEdit(pickedImageFile: File(pic.path));
     }
   }
 
@@ -53,10 +126,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _goEdit() => Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-  );
+  void _goEdit({File? pickedImageFile}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
+          initialFullName: _fullName,
+          initialAvatarUrl: _avatarUrl,
+          pickedImageFile: pickedImageFile,
+        ),
+      ),
+    ).then((_) => _fetchProfileData());
+  }
 
   void _goCalendar() => Navigator.push(
     context,
@@ -68,16 +149,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => ShadDialog.alert(
         title: const Text('Delete Account'),
-        description: const Text('This action cannot be undone. Continue?'),
+        description: const Text('Are you sure? This will permanently delete your account and all associated data. This action cannot be undone.'),
         actions: [
           ShadButton.ghost(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ShadButton.destructive(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // TODO: perform account deletion
+              if (!mounted) return;
+              setState(() => _isLoading = true);
+              try {
+                await Supabase.instance.client.rpc('delete_current_user');
+                await Supabase.instance.client.auth.signOut();
+                if (mounted) {
+                  ShadToaster.of(context).show(
+                    ShadToast(
+                      title: const Text('Account Deleted'),
+                      description: const Text('Your account has been successfully deleted.'),
+                    )
+                  );
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
+              } catch (e) {
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                  ShadToaster.of(context).show(
+                    ShadToast.destructive(
+                      title: const Text('Error Deleting Account'),
+                      description: Text(e.toString()),
+                    )
+                  );
+                }
+              }
             },
             child: const Text('Delete'),
           ),
@@ -98,9 +203,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Cancel'),
           ),
           ShadButton.ghost(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // TODO: perform logout
+              if (!mounted) return;
+              setState(() => _isLoading = true);
+              try {
+                await Supabase.instance.client.auth.signOut();
+                if (mounted) {
+                   ShadToaster.of(context).show(
+                    ShadToast(
+                      title: const Text('Logged Out'),
+                      description: const Text('You have been successfully logged out.'),
+                    )
+                  );
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
+              } catch (e) {
+                 if (mounted) {
+                  setState(() => _isLoading = false);
+                  ShadToaster.of(context).show(
+                    ShadToast.destructive(
+                      title: const Text('Error Logging Out'),
+                      description: Text(e.toString()),
+                    )
+                  );
+                }
+              }
             },
             child: const Text('Log out'),
           ),
@@ -112,9 +240,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    const name = 'Taylor Smith';
-    const email = 'taylor.smith@example.com';
-    final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join();
+
+    if (_isLoading && _fullName == null) {
+      return Scaffold(
+        backgroundColor: theme.colorScheme.background,
+        body: const Center(child: CircularProgressIndicator.adaptive()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
@@ -128,9 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final hPadding = width < 600 ? 12.0 : 20.0;
           return Stack(
             children: [
-              // Base background color
               Container(color: theme.colorScheme.background),
-              // Subtle decorative circle
               Positioned(
                 top: -screenHeight * 0.1,
                 right: -screenHeight * 0.1,
@@ -143,7 +273,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              // Header row
               Positioned(
                 top: 0,
                 left: 0,
@@ -179,7 +308,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2, end: 0),
-              // Main content below header
               Positioned.fill(
                 top: statusBarHeight + 80,
                 left: 0,
@@ -196,6 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           height: 96,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
+                            color: theme.colorScheme.primary.withOpacity(0.1),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
@@ -204,26 +333,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                           child: ClipOval(
-                            child: _avatarFile != null
-                              ? Image.file(_avatarFile!, fit: BoxFit.cover)
-                              : ShadAvatar(
-                                  'https://app.requestly.io/delay/2000/avatars.githubusercontent.com/u/124599?v=4',
-                                  placeholder: Text(
-                                    initials,
-                                    style: theme.textTheme.h2.copyWith(color: Colors.white),
+                            child: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                                ? Image.network(
+                                    _avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => ShadAvatar(
+                                      '',
+                                      placeholder: Text(
+                                        _initials,
+                                        style: theme.textTheme.h2.copyWith(color: theme.colorScheme.primaryForeground),
+                                      ),
+                                      backgroundColor: theme.colorScheme.primary,
+                                    ),
+                                  )
+                                : ShadAvatar(
+                                    '',
+                                    placeholder: Text(
+                                      _initials,
+                                      style: theme.textTheme.h2.copyWith(color: theme.colorScheme.primaryForeground),
+                                    ),
+                                    backgroundColor: theme.colorScheme.primary,
                                   ),
-                                ),
                           ),
                         ),
                       ),
                     ).animate().fadeIn(duration: 500.ms),
                     const SizedBox(height: 16),
                     Center(
-                      child: Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        _fullName ?? 'User Name', 
+                        style: theme.textTheme.h4.copyWith(fontWeight: FontWeight.bold)
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Center(
-                      child: Text(email, style: TextStyle(color: theme.colorScheme.mutedForeground)),
+                      child: Text(
+                        _email ?? 'user.email@example.com', 
+                        style: theme.textTheme.muted.copyWith(color: theme.colorScheme.mutedForeground)
+                      ),
                     ),
                     const SizedBox(height: 24),
                     ShadCard(
@@ -233,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             leading: const Icon(Icons.edit_outlined, color: ThemeProvider.successGreen),
                             title: const Text('Edit Profile'),
                             trailing: const Icon(Icons.chevron_right),
-                            onTap: _goEdit,
+                            onTap: () => _goEdit(),
                           ),
                           Divider(height: 1, indent: 56, endIndent: 16, color: theme.colorScheme.border),
                           ListTile(

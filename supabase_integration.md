@@ -66,6 +66,28 @@ This document outlines the progress made in integrating Supabase as the backend 
         *   Member names are displayed below their avatars.
     *   **RLS & Debugging:** Successfully diagnosed and resolved complex RLS issues, including "infinite recursion" errors and problems with data visibility for nested resources and aggregate counts. Resolved schema mismatch errors during circle creation (missing columns, malformed array literals).
 
+6.  **Flutter App Integration (Profile Page - View & Edit):**
+    *   **`ProfileScreen.dart` Integration:**
+        *   Successfully fetches and displays the logged-in user's `full_name`, `email` (read-only), and `avatar_url` from the `user_profiles` table.
+        *   Logout functionality implemented using `Supabase.instance.client.auth.signOut()`.
+        *   Account Deletion:
+            *   Confirmation dialog implemented using `ShadDialog`.
+            *   Calls the `public.delete_current_user()` SQL function to remove records from `user_profiles` and `auth.users`.
+            *   User is signed out upon successful deletion.
+    *   **`EditProfileScreen.dart` Integration:**
+        *   Allows users to update their `full_name`.
+        *   Avatar Management:
+            *   Users can pick a new avatar image from the gallery (`image_picker`).
+            *   The selected image is uploaded to Supabase Storage in the `user_avatars` bucket (path: `public/<user_id>/<filename>`).
+            *   The `avatar_url` in the `user_profiles` table is updated with the public URL of the newly uploaded image.
+        *   Email is displayed as read-only.
+        *   User feedback (success/error messages) provided using `ShadToaster`.
+    *   **SQL Function Enhancement:**
+        *   `public.delete_current_user()`: New `SECURITY DEFINER` function created to securely handle the deletion of a user's data from `user_profiles` and their corresponding entry in `auth.users`.
+    *   **UI & Theming Fixes:**
+        *   Corrected `ShadToast` API usage to `ShadToaster.of(context).show(ShadToast(...))` and utilized `ShadToast.destructive()` constructor.
+        *   Adjusted `ShadcnUI` theme color usage from incorrect `onPrimary` to `primaryForeground` for text/icons on primary backgrounds.
+
 ## Next Steps to Complete Integration:
 
 1.  **Data Verification & Mock Data Finalization:**
@@ -74,9 +96,9 @@ This document outlines the progress made in integrating Supabase as the backend 
 
 2.  **Image Handling & Display (Robust Solution):**
     *   **Supabase Storage:**
-        *   Create buckets (e.g., "circle_images", "user_avatars") with appropriate access policies.
-        *   Update mock data to use actual Supabase Storage URLs for `image_url` (circles) and `avatar_url` (users).
-        *   Implement image upload functionality in the app (e.g., for circle creation/editing, user profile updates).
+        *   Create `user_avatars` bucket with appropriate access policies (public read for `public/*`, authenticated write for `public/<user_id>/*`). *(Partially addressed by profile edit, but policies need formal setup and verification)*.
+        *   Create `circle_images` bucket with appropriate access policies.
+        *   Update mock data to use actual Supabase Storage URLs for `image_url` (circles) and ensure `avatar_url` (users) are consistently managed via uploads.
     *   Ensure `Image.network` error builders in `CircleCard` and `CircleDetailScreen` (for circle header image) are robust or show appropriate placeholders.
 
 3.  **Complete CRUD Operations for Circles:**
@@ -92,7 +114,8 @@ This document outlines the progress made in integrating Supabase as the backend 
     *   **RSVP to Events.**
 
 5.  **User Profile Management:**
-    *   Allow users to update their `full_name` and `avatar_url` (linking to Supabase Storage uploads).
+    *   Allow users to update their `full_name` and `avatar_url` (linking to Supabase Storage uploads). *(Largely completed)*
+    *   Consider adding other profile fields (e.g., bio, phone - if schema is extended).
 
 6.  **Real-time Functionality (Supabase Realtime):**
     *   Subscribe to changes for live updates in the UI.
