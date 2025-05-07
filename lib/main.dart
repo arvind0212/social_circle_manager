@@ -44,33 +44,12 @@ void main() async {
     }
   }
 
-  getCircleFromSupabase(1);
-
-  Circle.sampleCircles.insert(
-    0,
-    Circle(
-      id: 'test-id',
-      name: 'ADSAD Friends',
-      memberCount: 8,
-      description:
-          'Friends from university days who meet regularly for various activities and adventures. We share memories, create new ones, and support each other through life\'s journey.',
-      imageUrl: null, // Will use initials
-      lastActivity: 'Movie night planned 2 days ago',
-      createdDate: DateTime.now().subtract(const Duration(days: 120)),
-      adminId: 'user1',
-      interests: ['Movies', 'Board Games', 'Travel', 'Food', 'Music'],
-      commonActivities: [
-        'Movie nights',
-        'Weekend trips',
-        'Game nights',
-        'Dinners'
-      ],
-      upcomingEvents: [],
-      pastEvents: [],
-      members: [],
-      meetingFrequency: '2-3 times monthly',
-    ),
-  );
+  Circle? fetchedCircle = await getCircleFromSupabase(1);
+  if (fetchedCircle != null) {
+    Circle.sampleCircles.insert(0, fetchedCircle);
+  } else {
+    print("Failed to fetch circle data from Supabase");
+  }
 
   runApp(
     MultiProvider(
@@ -91,40 +70,119 @@ Future<Circle?> getCircleFromSupabase(int circleId) async {
       .eq('id', circleId)
       .single();
 
-  final members = await Supabase.instance.client
+  final membersLookup = await Supabase.instance.client
       .from('circle_members')
       .select()
       .eq('circle_id', circleId);
+
+  final List<CircleMember> circleMembers = [];
+
+  for (var memberLookup in membersLookup) {
+    final userId = memberLookup['user_id'] as int;
+    final member = await Supabase.instance.client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .single();
+
+    var identifier =
+        (member['email'] as String?) ?? (member['phone'] as String?);
+
+    if (identifier == null) {
+      identifier = "UNKNOWN";
+      continue;
+    }
+
+    const membershipStatus = MemberStatus.joined; // Default to joined for now
+
+    final CircleMember circleMember = CircleMember(
+        id: (member['id'] as int).toString(),
+        name: member['display_name'] as String,
+        photoUrl: member['avatar_url'] as String?,
+        identifier: identifier,
+        status: membershipStatus);
+
+    circleMembers.add(circleMember);
+  }
 
   final events = await Supabase.instance.client
       .from('events')
       .select()
       .eq('circle_id', circleId);
 
-  print("Number of members " + members.length.toString());
-  print("Events " + events.length.toString());
+  final List<Event> pastEvents = [];
+  final List<Event> upcomingEvents = [];
 
-  /*
-  Circle circle = Circle(
-    id: (response['id'] as int).toString(),
-    name: response['name'] as String,
-    memberCount: response['member_count'],
-    description: response['description'],
-    imageUrl: response['image_url'],
-    lastActivity: response['last_activity'],
-    createdDate: DateTime.parse(response['created_date']),
-    adminId: response['admin_id'],
-    interests: List<String>.from(response['interests']),
-    commonActivities: List<String>.from(response['common_activities']),
-    upcomingEvents: List<Event>.from(
-      response['upcoming_events'].map((event) => Event.fromJson(event)),
-    ),
-    pastEvents: List<Event>.from(
-      response['past_events'].map((event) => Event.fromJson(event)),
-    ), 
-  )
-  */
-  return null;
+  for (var event in events) {
+    final eventId = event['event_id'] as int;
+    final attendees =
+        circleMembers.length; // Assuming all members are attendees for now
+
+    final circleEvent = Event(
+      id: eventId.toString(),
+      title: event['title'] as String,
+      description: event['description'] as String,
+      dateTime: DateTime.parse(event['start_time'] as String),
+      location: event['location'] as String,
+      attendees: attendees,
+    );
+
+    if (circleEvent.dateTime.isBefore(DateTime.now())) {
+      pastEvents.add(circleEvent);
+    } else {
+      upcomingEvents.add(circleEvent);
+    }
+  }
+
+  Event? lastEvent;
+  for (var event in pastEvents) {
+    if (lastEvent == null || event.dateTime.isAfter(lastEvent.dateTime)) {
+      lastEvent = event;
+    }
+  }
+
+  String lastActivityMessage;
+  if (lastEvent != null) {
+    final dateformat = DateFormat("EEEE, MMM d, yyyy");
+    lastActivityMessage =
+        "${lastEvent.title} on ${dateformat.format(lastEvent.dateTime.toLocal())}";
+  } else {
+    lastActivityMessage = "No activities yet";
+  }
+
+  // Find admin
+  final admin = membersLookup.firstWhere(
+      (member) => (member['role'] == "admin" || member['role'] == "creator"),
+      orElse: () => {
+            'user_id': null,
+            'role': 'none',
+          });
+
+  final List<String> interests = []; // TODO: Fetch interests from Supabase
+  final List<String> commonActivities =
+      []; // TODO: Fetch common activities from Supabase
+
+  // Compute meeting frequency
+  // Weekly, Bi-weekly, Monthly, etc.
+  const meetingFrequency = "Weekly"; // Default to weekly for now
+
+  final Circle circle = Circle(
+    id: (circleLookup['id'] as int).toString(),
+    name: circleLookup['name'] as String,
+    memberCount: membersLookup.length,
+    description: circleLookup['description'] as String,
+    imageUrl: circleLookup['icon_url'] as String?,
+    lastActivity: lastActivityMessage,
+    createdDate: DateTime.parse(circleLookup['created_at'] as String),
+    adminId: admin['user_id'].toString(),
+    interests: interests,
+    commonActivities: commonActivities,
+    upcomingEvents: upcomingEvents,
+    pastEvents: pastEvents,
+    members: circleMembers,
+    meetingFrequency: meetingFrequency,
+  );
+  return circle;
 }
 
 class MyApp extends StatelessWidget {
