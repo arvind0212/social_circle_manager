@@ -30,7 +30,7 @@ dependencies:
   provider: any
   
   # Backend - Temporarily disabled for testing
-  # supabase_flutter: ^1.10.0
+  supabase_flutter: ^2.0.0
   
   # Explicitly exclude sign_in_with_apple
   # sign_in_with_apple: ^5.0.0
@@ -55,6 +55,7 @@ dependencies:
   pretty_animated_text: ^2.0.0
   flutter_staggered_grid_view: ^0.7.0
   image_picker: ^1.1.2
+  flutter_dotenv: ^5.2.1
   
   # Internationalization
   # intl: ^0.20.2 # Removed explicit dependency - shadcn_ui brings in ^0.19.0
@@ -86,6 +87,7 @@ flutter:
   # Assets
   assets:
     - assets/images/
+    - .env
   
   # Fonts
   fonts:

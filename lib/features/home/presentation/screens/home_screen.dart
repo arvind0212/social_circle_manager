@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared_components/navigation/bottom_nav_bar.dart';
 import '../../../circles/presentation/screens/circles_screen.dart';
 import '../../../events/presentation/screens/events_screen.dart';
@@ -17,10 +18,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  
+
   // Initialize screens lazily to avoid circular dependencies during initialization
   late final List<Widget> _screens;
-  
+
   @override
   void initState() {
     super.initState();
@@ -39,8 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Provider.of<ThemeProvider>(context);
-    
     return Scaffold(
       // Removing AppBar completely
       body: SafeArea(
@@ -57,4 +56,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-} 
+}
