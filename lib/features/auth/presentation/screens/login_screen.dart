@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 
@@ -37,31 +38,63 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         _isLoading = true;
       });
-      
-      // Simulate network delay for now - will be replaced with actual auth
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Skip actual supabase auth and proceed to home screen
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Show success toast
-        ShadToaster.of(context).show(
-          const ShadToast(
-            title: Text('Login successful'),
-            description: Text('Welcome back!'),
-          ),
+
+      try {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text.trim();
+
+        // Call Supabase sign in
+        final AuthResponse res = await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
         );
-        
-        // Navigate to home screen with animation
-        Future.delayed(const Duration(milliseconds: 300), () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+
+        // If successful (no exception thrown), proceed
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+
+          ShadToaster.of(context).show(
+            ShadToast.destructive(
+              title: const Text('Login Successful'), // Changed to destructive for visibility
+              description: Text('Welcome back, ${res.user?.email ?? 'user'}!'), // Show user email
+            ),
           );
-        });
+
+          Future.delayed(const Duration(milliseconds: 300), () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          });
+        }
+      } on AuthException catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          // Show error toast
+          ShadToaster.of(context).show(
+            ShadToast.destructive(
+              title: const Text('Login Failed'),
+              description: Text(e.message), // Show Supabase error message
+            ),
+          );
+        }
+      } catch (e) {
+        // Handle other potential errors
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ShadToaster.of(context).show(
+            ShadToast.destructive(
+              title: const Text('An Error Occurred'),
+              description: Text(e.toString()),
+            ),
+          );
+        }
       }
     }
   }

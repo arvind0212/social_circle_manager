@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:math'; // Import dart:math
 import '../providers/circle_creation_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -131,13 +132,23 @@ class _CircleDetailsFormState extends State<CircleDetailsForm> {
     final theme = ShadTheme.of(context);
     final provider = Provider.of<CircleCreationProvider>(context);
     
-    // Get initials if name exists
-    String initials = '';
-    if (_nameController.text.isNotEmpty) {
-      initials = _nameController.text.split(' ')
-          .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
-          .join('')
-          .substring(0, _nameController.text.split(' ').length > 1 ? 2 : 1);
+    // Safer initials calculation
+    String initials = '?';
+    final String name = _nameController.text.trim(); // Trim name first
+    if (name.isNotEmpty) {
+      final String joinedInitials = name.split(' ')
+          .where((word) => word.isNotEmpty) // Filter out empty strings
+          .map((word) => word[0].toUpperCase())
+          .join('');
+      if (joinedInitials.isNotEmpty) {
+        final int namePartCount = name.split(' ').where((s) => s.isNotEmpty).length;
+        final int maxLen = namePartCount > 1 ? 2 : 1;
+        final int end = min(maxLen, joinedInitials.length); // Use min()
+        initials = joinedInitials.substring(0, end);
+      } else {
+        // Handle cases like just spaces
+        initials = name[0].toUpperCase(); // Use first char of trimmed name if initials are empty
+      }
     }
     
     return Center(

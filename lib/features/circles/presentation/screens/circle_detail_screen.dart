@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:math'; // Import dart:math for min()
 import '../../domain/models/circle_model.dart';
 import '../../domain/models/circle_creation_model.dart';
+import '../../data/circle_service.dart'; // Import the service
 import '../../../../core/theme/app_theme.dart';
-import '../../../../../features/events/presentation/widgets/event_card.dart';
-import '../../../../../features/events/domain/models/event.dart' as events;
+import '../../../../../features/events/presentation/widgets/event_card.dart' as event_widgets; // Alias event card import
+import '../../../../../features/events/domain/models/event.dart' as events; // Alias event model import
 import '../../../events/presentation/screens/create_event_match_screen.dart';
 import '../../../events/presentation/screens/event_matching_screen.dart';
 
@@ -24,24 +26,58 @@ class CircleDetailScreen extends StatefulWidget {
 
 class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Circle _circle;
   final ScrollController _scrollController = ScrollController();
+  final CircleService _circleService = CircleService();
+
+  // State variables for detailed data
+  Circle? _detailedCircle;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _circle = widget.circle;
+    // Use the basic circle data immediately for title/initial display
+    _detailedCircle = widget.circle; 
+    
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
     
-    // Delay the animation slightly to prevent build issues
-    Future.delayed(const Duration(milliseconds: 50), () {
-      if (mounted) {
-        _animationController.forward();
-      }
+    // Fetch detailed data
+    _fetchCircleDetails();
+  }
+  
+  Future<void> _fetchCircleDetails() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
     });
+    try {
+      final detailedData = await _circleService.getCircleById(widget.circle.id);
+      if (mounted) {
+        setState(() {
+          _detailedCircle = detailedData;
+          _isLoading = false;
+        });
+        // Start animation after data is loaded
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted) {
+            _animationController.forward();
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+          // Keep basic data if detail fetch fails, but show error
+          _detailedCircle = widget.circle;
+        });
+      }
+    }
   }
   
   @override
@@ -58,11 +94,18 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360; // Check for very small screens
     
-    // Get initials if there's no image URL
-    final initials = _circle.name.split(' ')
-        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
-        .join('')
-        .substring(0, _circle.name.split(' ').length > 1 ? 2 : 1);
+    // Use _detailedCircle if available, otherwise fallback to widget.circle for initial build
+    final Circle displayCircle = _detailedCircle ?? widget.circle;
+    
+    // Safer initials calculation
+    final String joinedInitials = displayCircle.name.split(' ')
+        .where((word) => word.isNotEmpty)
+        .map((word) => word[0].toUpperCase())
+        .join('');
+    final int namePartCount = displayCircle.name.trim().split(' ').where((s) => s.isNotEmpty).length;
+    final int maxLen = namePartCount > 1 ? 2 : 1;
+    final int end = min(maxLen, joinedInitials.length);
+    final String initials = joinedInitials.isNotEmpty ? joinedInitials.substring(0, end) : '?';
     
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
@@ -143,109 +186,11 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           
           // Main content
           SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              controller: _scrollController,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header with circle info
-                  _buildHeader(theme, initials),
-                  
-                  // Dashboard overview
-                  _buildDashboardOverview(theme),
-                  
-                  // Active Event Poll Card
-                  _buildActivePollCard(theme),
-                  
-                  // Upcoming events section
-                  const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.event_rounded,
-                          size: 20,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Upcoming Events',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.foreground,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  _buildUpcomingEvents(theme),
-                  
-                  // Members section
-                  const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.people_rounded,
-                          size: 20,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Members',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.foreground,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  _buildMembersGrid(theme),
-                  
-                  // Activity timeline section
-                  const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.history_rounded,
-                          size: 20,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Activity Timeline',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.foreground,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  _buildActivityTimeline(theme),
-                  
-                  const SizedBox(height: 80), // Space at the bottom for FAB
-                ],
-              ),
-            ),
+            child: _isLoading
+              ? const Center(child: CircularProgressIndicator()) // Show loading indicator
+              : _errorMessage != null
+                  ? _buildErrorState(theme) // Show error state
+                  : _buildContentLoaded(theme, displayCircle, initials), // Show loaded content
           ),
         ],
       ),
@@ -274,8 +219,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           backgroundColor: Colors.transparent,
           onPressed: () {
             HapticFeedback.mediumImpact();
-            // Create new event
-            showCreateEventMatchDialog(context, circle: _circle);
+            showCreateEventMatchDialog(context, circle: displayCircle);
           },
           tooltip: 'Create new event',
           child: const Icon(
@@ -293,7 +237,121 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     );
   }
   
-  Widget _buildHeader(ShadThemeData theme, String initials) {
+  Widget _buildErrorState(ShadThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: theme.colorScheme.destructive, size: 48),
+            const SizedBox(height: 16),
+            Text('Error Loading Circle Details', style: theme.textTheme.h4.copyWith(color: theme.colorScheme.destructive)),
+            const SizedBox(height: 8),
+            Text(_errorMessage ?? 'An unknown error occurred.', style: theme.textTheme.muted, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            ShadButton.outline(
+              child: const Text('Retry'),
+              onPressed: _fetchCircleDetails, // Retry button
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContentLoaded(ShadThemeData theme, Circle displayCircle, String initials) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      controller: _scrollController,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(theme, displayCircle, initials),
+          _buildDashboardOverview(theme, displayCircle),
+          _buildActivePollCard(theme, displayCircle),
+          const SizedBox(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.event_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Upcoming Events',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.foreground,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildUpcomingEvents(theme, displayCircle),
+          const SizedBox(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.people_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Members',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.foreground,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildMembersGrid(theme, displayCircle),
+          const SizedBox(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.history_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Activity Timeline',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.foreground,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildActivityTimeline(theme, displayCircle),
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(ShadThemeData theme, Circle circle, String initials) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       child: Column(
@@ -337,9 +395,9 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                       ),
                       // Avatar image or initials
                       Positioned.fill(
-                        child: _circle.imageUrl != null
+                        child: circle.imageUrl != null
                             ? Image.network(
-                                _circle.imageUrl!,
+                                circle.imageUrl!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Center(
                                   child: Text(
@@ -383,7 +441,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _circle.name,
+                      circle.name,
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -404,7 +462,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                         ShadBadge(
                           backgroundColor: theme.colorScheme.accent.withOpacity(0.3),
                           foregroundColor: theme.colorScheme.primary.withOpacity(0.8),
-                          child: Text('${_circle.memberCount} members'),
+                          child: Text('${circle.memberCount ?? 0} members'),
                         ).animate()
                           .fadeIn(duration: 400.ms, delay: 200.ms)
                           .slideX(begin: 0.2, end: 0, duration: 400.ms),
@@ -416,7 +474,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                           ),
                         ),
                         Text(
-                          _formatCreatedDate(_circle.createdDate),
+                          _formatCreatedDate(circle.createdAt),
                           style: TextStyle(
                             fontSize: 14,
                             color: theme.colorScheme.mutedForeground,
@@ -434,7 +492,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           const SizedBox(height: 16),
           // Description
           Text(
-            _circle.description,
+            circle.description ?? 'No description available.',
             style: TextStyle(
               fontSize: 16,
               color: theme.colorScheme.mutedForeground,
@@ -448,7 +506,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     );
   }
   
-  Widget _buildDashboardOverview(ShadThemeData theme) {
+  Widget _buildDashboardOverview(ShadThemeData theme, Circle circle) {
     // Minimal, consistent 1x3 grid for summary tiles
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -465,7 +523,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
               child: _buildSummaryTile(
                 theme,
                 icon: Icons.event_note_rounded,
-                value: '${_circle.upcomingEvents.length + _circle.pastEvents.length}',
+                value: '${(circle.upcomingEvents?.length ?? 0) + (circle.pastEvents?.length ?? 0)}',
                 label: 'Total Events',
               ),
             ),
@@ -474,7 +532,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
               child: _buildSummaryTile(
                 theme,
                 icon: Icons.event_available_rounded,
-                value: '${_circle.upcomingEvents.length}',
+                value: '${circle.upcomingEvents?.length ?? 0}',
                 label: 'Upcoming',
               ),
             ),
@@ -483,7 +541,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
               child: _buildSummaryTile(
                 theme,
                 icon: Icons.calendar_month_rounded,
-                value: _getMonthlyEventCount(),
+                value: _getMonthlyEventCount(circle),
                 label: 'Monthly',
               ),
             ),
@@ -557,16 +615,15 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     );
   }
 
-  String _getMonthlyEventCount() {
+  String _getMonthlyEventCount(Circle circle) {
     // Example logic: average events per month over the last 3 months
-    final allEvents = [..._circle.upcomingEvents, ..._circle.pastEvents];
-    if (allEvents.isEmpty) return '0';
-    final now = DateTime.now();
-    final threeMonthsAgo = DateTime(now.year, now.month - 2, 1);
-    final eventsInLast3Months = allEvents.where((e) => e.dateTime.isAfter(threeMonthsAgo)).toList();
+    final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
+    // Handle nullable upcomingEvents and pastEvents by providing empty lists if null
+    final allEvents = [...(circle.upcomingEvents ?? []), ...(circle.pastEvents ?? [])];
+    final eventsInLast3Months = allEvents.where((e) => e.eventDatetime.isAfter(threeMonthsAgo)).toList(); // Use eventDatetime
     final months = <int>{};
     for (var e in eventsInLast3Months) {
-      months.add(e.dateTime.month + e.dateTime.year * 12);
+      months.add(e.eventDatetime.month + e.eventDatetime.year * 12); // Use eventDatetime
     }
     final monthCount = months.length == 0 ? 1 : months.length;
     final avg = (eventsInLast3Months.length / monthCount).round();
@@ -574,23 +631,12 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
   
   String _formatCreatedDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    if (difference.inDays < 30) {
-      return 'Created ${difference.inDays} days ago';
-    } else if (difference.inDays < 365) {
-      final months = (difference.inDays / 30).floor();
-      return 'Created $months ${months == 1 ? 'month' : 'months'} ago';
-    } else {
-      final years = (difference.inDays / 365).floor();
-      return 'Created $years ${years == 1 ? 'year' : 'years'} ago';
-    }
+    return DateFormat('MMMM d, yyyy').format(date);
   }
   
   String _getTopActivity() {
-    if (_circle.commonActivities.isNotEmpty) {
-      return _circle.commonActivities.first;
+    if ((_detailedCircle?.commonActivities?.isNotEmpty ?? false)) {
+      return _detailedCircle!.commonActivities!.first;
     }
     return 'No activities yet';
   }
@@ -715,8 +761,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
 
   // Method to build upcoming events
-  Widget _buildUpcomingEvents(ShadThemeData theme) {
-    if (_circle.upcomingEvents.isEmpty) {
+  Widget _buildUpcomingEvents(ShadThemeData theme, Circle circle) {
+    if ((circle.upcomingEvents?.isEmpty ?? true)) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: ShadCard(
@@ -812,22 +858,22 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             physics: const BouncingScrollPhysics(),
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _circle.upcomingEvents.length,
+            itemCount: circle.upcomingEvents?.length ?? 0,
             itemBuilder: (context, index) {
-              final event = _circle.upcomingEvents[index];
-              // Map local Event to events.Event for EventCard
+              final event = circle.upcomingEvents![index];
+              // Map event data using the actual event object
               final eventCardModel = events.Event(
                 id: event.id,
                 title: event.title,
-                description: event.description,
-                location: event.location,
-                startTime: event.dateTime,
-                endTime: event.dateTime.add(const Duration(hours: 2)), // Fallback duration
-                circleName: _circle.name,
-                circleId: _circle.id,
-                circleColor: theme.colorScheme.primary, // Use primary as default
-                attendees: event.attendees,
-                isRsvpd: null,
+                description: event.description ?? 'No description.',
+                location: event.location ?? 'Not specified.',
+                startTime: event.eventDatetime,
+                endTime: event.eventDatetime.add(const Duration(hours: 2)),
+                circleName: circle.name,
+                circleId: circle.id,
+                circleColor: theme.colorScheme.primary,
+                attendees: event.attendees?.length ?? 0,
+                isRsvpd: null, // Or determine based on current user later
               );
               return Container(
                 width: cardWidth,
@@ -837,7 +883,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                   top: 8,
                   bottom: 48,
                 ),
-                child: EventCard(
+                child: event_widgets.EventCard(
                   event: eventCardModel,
                   isUpcoming: true,
                 ).animate()
@@ -852,8 +898,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
   
   // Method to build members grid
-  Widget _buildMembersGrid(ShadThemeData theme) {
-    if (_circle.members.isEmpty) {
+  Widget _buildMembersGrid(ShadThemeData theme, Circle circle) {
+    if ((circle.members?.isEmpty ?? true)) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: ShadCard(
@@ -932,8 +978,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     }
     
     // Show the first 8 members in the grid (or less if fewer members)
-    final displayedMembers = _circle.members.take(8).toList();
-    final hasMore = _circle.members.length > 8;
+    final displayedMembers = circle.members?.take(8).toList() ?? [];
+    final hasMore = (circle.members?.length ?? 0) > 8;
     
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -958,6 +1004,10 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
         }
         
         final spacing = isSmallScreen ? 12.0 : 16.0;
+
+        // ***** ADD THIS DEBUG PRINT *****
+        print('[CircleDetailScreen _buildMembersGrid] itemSize: $itemSize, columnsCount: $columnsCount, screenWidth: $screenWidth, spacing: $spacing');
+        // *******************************
         
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -993,7 +1043,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                       
                       // "More" avatar if we have more than 8 members
                       if (hasMore)
-                        _buildMoreAvatar(theme, _circle.members.length - 8, itemSize),
+                        _buildMoreAvatar(theme, (circle.members?.length ?? 0) - 8, itemSize),
                       
                       // "Add" button
                       _buildAddMemberButton(theme, itemSize),
@@ -1011,166 +1061,63 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
   
   // Helper method to build member avatar
-  Widget _buildMemberAvatar(CircleMember member, ShadThemeData theme, int index, double size) {
-    // Get member initials
-    final name = member.name ?? member.identifier.split('@').first;
-    final initials = name.split(' ')
-        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
-        .join('')
-        .substring(0, name.split(' ').length > 1 ? 2 : 1);
+  Widget _buildMemberAvatar(CircleMember member, ShadThemeData theme, int index, double itemSize) {
+    print('[CircleDetailScreen _buildMemberAvatar] Member ID: ${member.id}, Name: ${member.fullName}, Avatar: ${member.avatarUrl}, Email: ${member.email}');
+
+    final name = member.fullName ?? member.email?.split('@').first ?? 'User';
+    final hasPhoto = member.avatarUrl != null && member.avatarUrl!.isNotEmpty;
     
-    final hasPhoto = member.photoUrl != null && member.photoUrl!.isNotEmpty;
-    
-    return SizedBox(
-      width: size,
+    return SizedBox( // Added SizedBox to control width and allow Column for text
+      width: itemSize, // Match the width logic of _buildMoreAvatar and _buildAddMemberButton
       child: Column(
+        mainAxisSize: MainAxisSize.min, // Important for Wrap layout
         children: [
-          Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(size),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                // Show member profile or actions
-              },
-              child: Container(
-                width: size * 0.8,
-                height: size * 0.8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.foreground.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: hasPhoto 
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(size),
-                      child: Image.network(
-                        member.photoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          decoration: BoxDecoration(
-                            color: _getAvatarBackgroundColor(name, theme),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              initials,
-                              style: TextStyle(
-                                fontSize: size * 0.28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+          Tooltip(
+            message: name,
+            child: CircleAvatar(
+              radius: itemSize * 0.4, // Adjusted radius to fit within itemSize with text below (0.8 diameter of itemSize)
+              backgroundColor: hasPhoto ? Colors.transparent : theme.colorScheme.muted,
+              backgroundImage: hasPhoto ? NetworkImage(member.avatarUrl!) : null,
+              child: !hasPhoto
+                  ? Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                      style: TextStyle(
+                          color: theme.colorScheme.mutedForeground,
+                          fontWeight: FontWeight.bold,
+                          fontSize: itemSize * 0.3), // Adjusted font size
                     )
-                  : Container(
-                      decoration: BoxDecoration(
-                        color: _getAvatarBackgroundColor(name, theme),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          initials,
-                          style: TextStyle(
-                            fontSize: size * 0.28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-              ),
+                  : null,
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            width: size * 1.2,
-            alignment: Alignment.center,
-            child: Text(
-              name,
-              style: TextStyle(
-                fontSize: size * 0.16,
-                fontWeight: FontWeight.w500,
-                color: theme.colorScheme.foreground,
-                height: 1.2,
-              ),
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.visible,
+          const SizedBox(height: 8), // Space between avatar and name
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            maxLines: 2, // Allow for longer names to wrap
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: itemSize * 0.18, // Consistent with "More" and "Add" text
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.foreground,
             ),
           ),
-          if (member.id == _circle.adminId)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: EdgeInsets.symmetric(
-                horizontal: size * 0.08, 
-                vertical: size * 0.03
-              ),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                'Admin',
-                style: TextStyle(
-                  fontSize: size * 0.14,
-                  fontWeight: FontWeight.w500,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
+          // Consider if a fixed height SizedBox is needed at the bottom for alignment
+          // like in _buildMoreAvatar and _buildAddMemberButton (SizedBox(height: 28))
+          // For now, let Wrap handle vertical spacing with runSpacing.
         ],
       ),
-    ).animate()
-      .fadeIn(duration: 300.ms, delay: (1300 + index * 50).ms)
-      .scale(
-        begin: const Offset(0.8, 0.8),
-        end: const Offset(1.0, 1.0),
-        duration: 400.ms,
-        curve: Curves.easeOutQuint,
-      );
-  }
-  
-  // Generate a consistent color based on the name
-  Color _getAvatarBackgroundColor(String name, ShadThemeData theme) {
-    // Use a simple hash of the name to generate a consistent color
-    final int hash = name.codeUnits.fold(0, (prev, element) => prev + element);
-    
-    // Create a list of pleasant avatar background colors
-    final List<Color> avatarColors = [
-      Colors.blue.shade700,
-      Colors.indigo.shade700,
-      Colors.purple.shade700,
-      Colors.deepPurple.shade700,
-      Colors.teal.shade700,
-      Colors.green.shade700,
-      Colors.amber.shade800,
-      Colors.deepOrange.shade700,
-      theme.colorScheme.primary,
-      ThemeProvider.secondaryPurple,
-    ];
-    
-    // Use the hash to pick a color from the list
-    return avatarColors[hash % avatarColors.length];
+    );
   }
   
   // Helper method to build "more" avatar
-  Widget _buildMoreAvatar(ShadThemeData theme, int moreCount, double size) {
+  Widget _buildMoreAvatar(ShadThemeData theme, int moreCount, double itemSize) {
     return SizedBox(
-      width: size,
+      width: itemSize,
       child: Column(
         children: [
           Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(size),
+            borderRadius: BorderRadius.circular(itemSize),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () {
@@ -1178,8 +1125,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                 // Show all members
               },
               child: Container(
-                width: size * 0.8,
-                height: size * 0.8,
+                width: itemSize * 0.8,
+                height: itemSize * 0.8,
                 decoration: BoxDecoration(
                   color: _getAvatarBackgroundColor("More Members", theme).withOpacity(0.8),
                   shape: BoxShape.circle,
@@ -1195,7 +1142,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                   child: Text(
                     '+$moreCount',
                     style: TextStyle(
-                      fontSize: size * 0.28,
+                      fontSize: itemSize * 0.28,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -1208,7 +1155,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           Text(
             'More',
             style: TextStyle(
-              fontSize: size * 0.18,
+              fontSize: itemSize * 0.18,
               fontWeight: FontWeight.w500,
               color: theme.colorScheme.foreground,
             ),
@@ -1229,14 +1176,14 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
   
   // Helper method to build "add member" button
-  Widget _buildAddMemberButton(ShadThemeData theme, double size) {
+  Widget _buildAddMemberButton(ShadThemeData theme, double itemSize) {
     return SizedBox(
-      width: size,
+      width: itemSize,
       child: Column(
         children: [
           Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(size),
+            borderRadius: BorderRadius.circular(itemSize),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () {
@@ -1244,8 +1191,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                 // Add new member
               },
               child: Container(
-                width: size * 0.8,
-                height: size * 0.8,
+                width: itemSize * 0.8,
+                height: itemSize * 0.8,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withOpacity(0.1),
                   shape: BoxShape.circle,
@@ -1260,7 +1207,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                 child: Center(
                   child: Icon(
                     Icons.add_rounded,
-                    size: size * 0.36,
+                    size: itemSize * 0.36,
                     color: theme.colorScheme.primary,
                   ),
                 ),
@@ -1271,7 +1218,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           Text(
             'Add',
             style: TextStyle(
-              fontSize: size * 0.18,
+              fontSize: itemSize * 0.18,
               fontWeight: FontWeight.w500,
               color: theme.colorScheme.foreground,
             ),
@@ -1292,9 +1239,10 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
 
   // Method to build activity timeline
-  Widget _buildActivityTimeline(ShadThemeData theme) {
+  Widget _buildActivityTimeline(ShadThemeData theme, Circle circle) {
     // Combine past events with most recent first
-    final timelineEvents = [..._circle.pastEvents]..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    final timelineEvents = [...(circle.pastEvents ?? [])]
+      ..sort((a, b) => b.eventDatetime.compareTo(a.eventDatetime));
     
     if (timelineEvents.isEmpty) {
       return Padding(
@@ -1392,8 +1340,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   
   // Helper method to build timeline item
   Widget _buildTimelineItem(Event event, ShadThemeData theme, int index, bool isLast) {
-    final formattedDate = _formatTimelineDate(event.dateTime);
-    final timeAgo = _getTimeAgo(event.dateTime);
+    final formattedDate = _formatTimelineDate(event.eventDatetime);
+    final timeAgo = _getTimeAgo(event.eventDatetime);
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1534,7 +1482,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        event.description,
+                        event.description ?? 'No description.',
                         style: TextStyle(
                           fontSize: 14,
                           color: theme.colorScheme.mutedForeground,
@@ -1558,7 +1506,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '${event.attendees} attended',
+                                '${event.attendees?.length ?? 0} attended',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: theme.colorScheme.mutedForeground,
@@ -1577,7 +1525,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  event.location,
+                                  event.location ?? 'Not specified.',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: theme.colorScheme.mutedForeground,
@@ -1703,7 +1651,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     }
   }
 
-  Widget _buildActivePollCard(ShadThemeData theme) {
+  Widget _buildActivePollCard(ShadThemeData theme, Circle circle) {
     // In a real app, you would check if there IS an active poll for this circle.
     // For now, we'll assume there might be one and the button always navigates.
     // You might also want to display some summary info if a poll is active.
@@ -1743,7 +1691,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => EventMatchingScreen(
-                      circle: _circle,
+                      circle: circle,
                       eventPreferences: const {}, // Or fetch/pass actual if available
                     ),
                   ),
@@ -1763,5 +1711,29 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     ).animate()
         .fadeIn(duration: 600.ms, delay: 700.ms) // Adjusted delay
         .slideY(begin: 0.1, end: 0, duration: 500.ms);
+  }
+
+  // Add this helper function back
+  // Generate a consistent color based on the name
+  Color _getAvatarBackgroundColor(String name, ShadThemeData theme) {
+    // Use a simple hash of the name to generate a consistent color
+    final int hash = name.codeUnits.fold(0, (prev, element) => prev + element);
+    
+    // Create a list of pleasant avatar background colors
+    final List<Color> avatarColors = [
+      Colors.blue.shade700,
+      Colors.indigo.shade700,
+      Colors.purple.shade700,
+      Colors.deepPurple.shade700,
+      Colors.teal.shade700,
+      Colors.green.shade700,
+      Colors.amber.shade800,
+      Colors.deepOrange.shade700,
+      theme.colorScheme.primary,
+      ThemeProvider.secondaryPurple,
+    ];
+    
+    // Use the hash to pick a color from the list
+    return avatarColors[hash % avatarColors.length];
   }
 } 

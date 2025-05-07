@@ -9,6 +9,7 @@ import 'circle_details_form.dart';
 import 'circle_members_form.dart';
 import 'circle_preferences_form.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/circle_service.dart';
 
 /// A multi-step dialog for creating a new circle
 class CreateCircleDialog extends StatefulWidget {
@@ -272,11 +273,10 @@ class _CreateCircleDialogState extends State<CreateCircleDialog> with SingleTick
   
   Widget _buildFooter(BuildContext context, CircleCreationProvider provider) {
     final theme = ShadTheme.of(context);
-    final bool canProceed = provider.canProceedToNextStep();
-    final bool isLastStep = provider.currentStep == 2;
-    
+    final isLastStep = provider.currentStep == 2;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
         color: theme.colorScheme.background,
         borderRadius: const BorderRadius.only(
@@ -286,8 +286,7 @@ class _CreateCircleDialogState extends State<CreateCircleDialog> with SingleTick
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.foreground.withOpacity(0.05),
-            blurRadius: 6,
-            spreadRadius: -2,
+            blurRadius: 8,
             offset: const Offset(0, -2),
           ),
         ],
@@ -295,111 +294,104 @@ class _CreateCircleDialogState extends State<CreateCircleDialog> with SingleTick
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          provider.currentStep > 0
-              ? ShadButton.outline(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    provider.previousStep();
-                  },
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_back_rounded,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('Back'),
-                    ],
-                  ),
-                )
-              : const SizedBox(width: 100),
-          
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: ShadButton(
-              onPressed: canProceed
-                  ? () {
-                      HapticFeedback.mediumImpact();
-                      if (isLastStep) {
-                        _handleCreateCircle(context);
-                      } else {
-                        provider.nextStep();
-                      }
+          if (provider.currentStep > 0)
+            ShadButton.outline(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                provider.previousStep();
+              },
+              child: const Text('Back'),
+              icon: const Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+              ),
+            )
+          else
+            Container(), // Placeholder for alignment
+
+          ShadButton(
+            width: isLastStep ? 150 : 120, // Wider button for "Create Circle"
+            onPressed: provider.isLoading // Disable button when loading
+              ? null
+              : () async {
+                HapticFeedback.lightImpact();
+                if (isLastStep) {
+                  if (provider.validateCurrentStep()) {
+                    provider.setLoading(true);
+                    try {
+                      final circleData = provider.getCircleCreationData(); 
+                      final CircleService circleService = CircleService();
+                      await circleService.createCircle(circleData);
+                      provider.setLoading(false);
+                      
+                      // Show success toast using ShadToaster
+                      ShadToaster.of(context).show(
+                        ShadToast(
+                          title: const Text('Circle Created!'),
+                          description: const Text('Your new circle has been successfully created.'),
+                          // To make it look like a success toast, you might apply specific colors
+                          // via theme or directly if ShadToast allows, or use a leading success icon.
+                          // For now, keeping it simple as ShadToast doesn't have a direct 'success' variant.
+                        ),
+                      );
+                      Navigator.of(context).pop(true); // Pop with success
+                    } catch (e) {
+                      provider.setLoading(false);
+                      // Show error toast using ShadToaster and ShadToast.destructive
+                      ShadToaster.of(context).show(
+                        ShadToast.destructive(
+                          title: const Text('Creation Failed'),
+                          description: Text(e.toString()),
+                        ),
+                      );
+                      print('Error creating circle: $e');
                     }
-                  : null,
-              gradient: canProceed ? LinearGradient(
+                  } else {
+                     // Show validation error toast using ShadToaster and ShadToast.destructive
+                     ShadToaster.of(context).show(
+                        ShadToast.destructive(
+                          title: const Text('Validation Error'),
+                          description: const Text('Please fill all required fields for the current step.'),
+                        ),
+                      );
+                  }
+                } else {
+                  if (provider.validateCurrentStep()) {
+                     provider.nextStep();
+                  } else {
+                      // Show validation error toast using ShadToaster and ShadToast.destructive
+                      ShadToaster.of(context).show(
+                        ShadToast.destructive(
+                          title: const Text('Validation Error'),
+                          description: const Text('Please fill all required fields before proceeding.'),
+                        ),
+                      );
+                  }
+                }
+              },
+            child: Text(isLastStep ? 'Create Circle' : 'Next'),
+            leading: provider.isLoading 
+              ? const SizedBox(
+                  width: 16, 
+                  height: 16, 
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                )
+              : Icon(
+                  isLastStep ? Icons.check_circle_outline_rounded : Icons.arrow_forward_ios_rounded, 
+                  size: 18,
+                  color: isLastStep ? Colors.white : null,
+                ),
+            gradient: isLastStep ? 
+              LinearGradient(
                 colors: [
-                  theme.colorScheme.primary,
-                  Color.lerp(theme.colorScheme.primary, ThemeProvider.secondaryPurple, 0.4)!,
+                  ThemeProvider.primaryBlue,
+                  Color.lerp(ThemeProvider.primaryBlue, ThemeProvider.secondaryPurple, 0.4)!
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ) : null,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Opacity(
-                    opacity: canProceed ? 1.0 : 0.5,
-                    child: Text(
-                      isLastStep ? 'Create Circle' : 'Next',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    isLastStep ? Icons.check_circle_outline_rounded : Icons.arrow_forward_rounded,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
-      ),
-    );
-  }
-  
-  void _handleCreateCircle(BuildContext context) {
-    // In a real app, this would call a service to create the circle
-    final theme = ShadTheme.of(context);
-    final circleData = _provider.data;
-    
-    // Close the dialog
-    Navigator.of(context).pop();
-    
-    // Show a success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: theme.colorScheme.primary,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: Colors.white,
-              size: 18,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Circle "${circleData.name}" created successfully!',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 2),
       ),
     );
   }

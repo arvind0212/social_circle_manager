@@ -1,361 +1,300 @@
 import 'package:flutter/material.dart';
 import 'circle_creation_model.dart';
 
+// Interest model
+class InterestModel {
+  final String id;
+  final String name;
+  final String? category;
+  // final DateTime? createdAt; // from public.interests table if added
+
+  InterestModel({
+    required this.id,
+    required this.name,
+    this.category,
+    // this.createdAt,
+  });
+
+  factory InterestModel.fromJson(Map<String, dynamic> json) {
+    return InterestModel(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      category: json['category'] as String?,
+      // createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {
+      'id': id,
+      'name': name,
+    };
+    if (category != null) {
+      data['category'] = category;
+    }
+    // if (createdAt != null) {
+    //   data['created_at'] = createdAt!.toIso8601String();
+    // }
+    return data;
+  }
+}
+
+// Event Attendee related models
+enum EventAttendeeStatus {
+  going,
+  not_going,
+  maybe,
+  invited;
+
+  String toJson() => name;
+  static EventAttendeeStatus fromJson(String json) => values.byName(json);
+}
+
+class EventAttendee {
+  final String userId; // from user_profiles.id
+  final String? fullName; // from user_profiles.full_name
+  final String? avatarUrl; // from user_profiles.avatar_url
+  final EventAttendeeStatus status; // RSVP status for this event
+  final DateTime rsvpedAt;
+  // You might also want to include user_profile_updated_at if displaying that info here
+
+  EventAttendee({
+    required this.userId,
+    this.fullName,
+    this.avatarUrl,
+    required this.status,
+    required this.rsvpedAt,
+  });
+
+  factory EventAttendee.fromJson(Map<String, dynamic> json) {
+    // Assumes json is a record from event_attendees joined with user_profiles.
+    // The user_profile data might be directly in json if the select was e.g., supabase.from('event_attendees').select('*, user_id(*)')
+    // or nested if it was supabase.from('event_attendees').select('*, user_profiles:user_id(*)')
+    Map<String, dynamic> userProfileData = json['user_profiles'] ?? json['user_id'] ?? json;
+    
+    return EventAttendee(
+      userId: userProfileData['id'] as String? ?? json['user_id'] as String, // user_id is the FK on event_attendees
+      fullName: userProfileData['full_name'] as String?,
+      avatarUrl: userProfileData['avatar_url'] as String?,
+      status: EventAttendeeStatus.fromJson(json['status'] as String? ?? 'invited'), // status is from event_attendees table itself
+      rsvpedAt: DateTime.parse(json['rsvped_at'] as String? ?? DateTime.now().toIso8601String()), // rsvped_at from event_attendees
+    );
+  }
+}
+
 // Event model for circle events
 class Event {
   final String id;
+  final String circleId; // Foreign Key to Circle
+  final String createdByUserId; // Foreign Key to UserProfile
   final String title;
-  final String description;
-  final DateTime dateTime;
-  final String location;
-  final int attendees;
-  
+  final String? description;
+  final DateTime eventDatetime; // Maps to event_datetime
+  final String? location;
+  final List<EventAttendee>? attendees; // Changed from List<CircleMember>
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
   Event({
     required this.id,
+    required this.circleId,
+    required this.createdByUserId,
     required this.title,
-    required this.description,
-    required this.dateTime,
-    required this.location,
-    required this.attendees,
+    this.description,
+    required this.eventDatetime,
+    this.location,
+    this.attendees,
+    required this.createdAt,
+    required this.updatedAt,
   });
+
+  factory Event.fromJson(Map<String, dynamic> json) {
+    return Event(
+      id: json['id'] as String,
+      circleId: json['circle_id'] as String,
+      createdByUserId: json['created_by_user_id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String?,
+      eventDatetime: DateTime.parse(json['event_datetime'] as String),
+      location: json['location'] as String?,
+      attendees: (json['event_attendees'] as List?)
+          ?.map((attendeeJson) => EventAttendee.fromJson(attendeeJson as Map<String, dynamic>))
+          .toList(),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    // Basic toJson - attendeesDetails might not be directly settable this way
+    return {
+      'id': id,
+      'circle_id': circleId,
+      'created_by_user_id': createdByUserId,
+      'title': title,
+      'description': description,
+      'event_datetime': eventDatetime.toIso8601String(),
+      'location': location,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      // attendees are managed via event_attendees table typically
+    };
+  }
 }
 
 class Circle {
   final String id;
   final String name;
-  final int memberCount;
-  final String description;
-  final String? imageUrl;
-  final String lastActivity;
-  // Added properties for circle detail screen
-  final DateTime createdDate;
-  final String adminId;
-  final List<String> interests;
-  final List<String> commonActivities;
-  final List<Event> upcomingEvents;
-  final List<Event> pastEvents;
-  final List<CircleMember> members;
-  final String meetingFrequency;
-  
+  final String? description;
+  final String? imageUrl; // maps to image_url
+  final DateTime createdAt; // maps to created_at
+  final DateTime updatedAt; // maps to updated_at
+  final String adminId; // Foreign Key to UserProfile, maps to admin_id
+  final String? meetingFrequency; // maps to meeting_frequency
+  final List<String>? commonActivities; // maps to common_activities TEXT[]
+  final String? lastActivity; // maps to last_activity (consider deriving this)
+
+  // Joined data / App-side derived data
+  final List<InterestModel>? interests; // From joined circle_interests -> interests
+  final List<CircleMember>? members; // From joined circle_members -> user_profiles
+  final List<Event>? upcomingEvents; // Fetched and filtered client-side or specific query
+  final List<Event>? pastEvents; // Fetched and filtered client-side or specific query
+  final int? memberCount; // Can be derived from members.length or fetched
+
   Circle({
     required this.id,
     required this.name,
-    required this.memberCount,
-    required this.description,
+    this.description,
     this.imageUrl,
-    required this.lastActivity,
-    required this.createdDate,
+    required this.createdAt,
+    required this.updatedAt,
     required this.adminId,
-    required this.interests,
-    required this.commonActivities,
-    required this.upcomingEvents,
-    required this.pastEvents,
-    required this.members,
-    required this.meetingFrequency,
+    this.meetingFrequency,
+    this.commonActivities,
+    this.lastActivity,
+    this.interests,
+    this.members,
+    this.upcomingEvents,
+    this.pastEvents,
+    this.memberCount,
   });
 
-  // Sample data for prototype
-  static List<Circle> sampleCircles = [
-    Circle(
-      id: '1',
-      name: 'College Friends',
-      memberCount: 8,
-      description: 'Friends from university days',
-      imageUrl: null, // We'll use initials for this one
-      lastActivity: 'Movie night planned 2 days ago',
-      createdDate: DateTime.now().subtract(const Duration(days: 120)),
-      adminId: 'user1',
-      interests: ['Movies', 'Board Games', 'Travel'],
-      commonActivities: ['Movie nights', 'Weekend trips', 'Game nights'],
-      upcomingEvents: [
-        Event(
-          id: 'e1',
-          title: 'Summer Reunion',
-          description: 'Annual gathering at the lake house',
-          dateTime: DateTime.now().add(const Duration(days: 15)),
-          location: 'Lake Washington',
-          attendees: 6,
-        ),
-        Event(
-          id: 'e2',
-          title: 'Movie Night: Inception',
-          description: 'Watching Inception at John\'s place',
-          dateTime: DateTime.now().add(const Duration(days: 3)),
-          location: 'John\'s Apartment',
-          attendees: 8,
-        ),
-      ],
-      pastEvents: [
-        Event(
-          id: 'e3',
-          title: 'Board Game Night',
-          description: 'Played Catan and Ticket to Ride',
-          dateTime: DateTime.now().subtract(const Duration(days: 12)),
-          location: 'Sarah\'s House',
-          attendees: 7,
-        ),
-        Event(
-          id: 'e4',
-          title: 'Happy Hour',
-          description: 'After-finals celebration',
-          dateTime: DateTime.now().subtract(const Duration(days: 45)),
-          location: 'The Pub Downtown',
-          attendees: 8,
-        ),
-      ],
-      members: [
-        CircleMember(
-          id: 'user1',
-          identifier: 'john@example.com',
-          name: 'John Smith',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user2',
-          identifier: 'sarah@example.com',
-          name: 'Sarah Johnson',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user3',
-          identifier: 'mike@example.com',
-          name: 'Mike Anderson',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user4',
-          identifier: 'emily@example.com',
-          name: 'Emily Davis',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user5',
-          identifier: 'james@example.com',
-          name: 'James Wilson',
-          status: MemberStatus.joined,
-        ),
-      ],
-      meetingFrequency: '2-3 times monthly',
-    ),
-    Circle(
-      id: '2',
-      name: 'Book Club',
-      memberCount: 5,
-      description: 'Monthly book discussion group',
-      imageUrl: 'https://images.unsplash.com/photo-1535905557558-afc4877a26fc?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2340&q=80',
-      lastActivity: 'New book selected yesterday',
-      createdDate: DateTime.now().subtract(const Duration(days: 240)),
-      adminId: 'user5',
-      interests: ['Reading', 'Literature', 'Writing'],
-      commonActivities: ['Book discussions', 'Author events', 'Writing workshops'],
-      upcomingEvents: [
-        Event(
-          id: 'e5',
-          title: 'July Book Discussion',
-          description: 'Discussing "The Midnight Library" by Matt Haig',
-          dateTime: DateTime.now().add(const Duration(days: 10)),
-          location: 'City Library',
-          attendees: 5,
-        ),
-      ],
-      pastEvents: [
-        Event(
-          id: 'e6',
-          title: 'June Book Discussion',
-          description: 'Discussed "Educated" by Tara Westover',
-          dateTime: DateTime.now().subtract(const Duration(days: 21)),
-          location: 'Zoom Call',
-          attendees: 4,
-        ),
-      ],
-      members: [
-        CircleMember(
-          id: 'user5',
-          identifier: 'james@example.com',
-          name: 'James Wilson',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user6',
-          identifier: 'olivia@example.com',
-          name: 'Olivia Martinez',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user7',
-          identifier: 'david@example.com',
-          name: 'David Thompson',
-          status: MemberStatus.joined,
-        ),
-      ],
-      meetingFrequency: 'Monthly',
-    ),
-    Circle(
-      id: '3',
-      name: 'Hiking Group',
-      memberCount: 12,
-      description: 'Weekend warriors exploring trails',
-      imageUrl: 'https://images.unsplash.com/photo-1551632811-561732d1e306?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2340&q=80',
-      lastActivity: 'Mt. Rainier hike scheduled for next weekend',
-      createdDate: DateTime.now().subtract(const Duration(days: 85)),
-      adminId: 'user10',
-      interests: ['Hiking', 'Nature', 'Photography', 'Camping'],
-      commonActivities: ['Weekend hikes', 'Photography trips', 'Camping'],
-      upcomingEvents: [
-        Event(
-          id: 'e7',
-          title: 'Mt. Rainier Day Hike',
-          description: 'Exploring the Skyline Trail',
-          dateTime: DateTime.now().add(const Duration(days: 5)),
-          location: 'Mt. Rainier National Park',
-          attendees: 10,
-        ),
-      ],
-      pastEvents: [
-        Event(
-          id: 'e8',
-          title: 'Olympic National Park',
-          description: 'Overnight hiking and camping trip',
-          dateTime: DateTime.now().subtract(const Duration(days: 14)),
-          location: 'Olympic National Park',
-          attendees: 8,
-        ),
-      ],
-      members: [
-        CircleMember(
-          id: 'user8',
-          identifier: 'lisa@example.com',
-          name: 'Lisa Brown',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user9',
-          identifier: 'robert@example.com',
-          name: 'Robert Garcia',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user10',
-          identifier: 'jennifer@example.com',
-          name: 'Jennifer Lopez',
-          status: MemberStatus.joined,
-        ),
-      ],
-      meetingFrequency: 'Bi-weekly',
-    ),
-    Circle(
-      id: '4',
-      name: 'Office Happy Hour',
-      memberCount: 15,
-      description: 'Work colleagues who enjoy happy hours',
-      imageUrl: 'https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2340&q=80',
-      lastActivity: 'Planning next Thursday\'s venue',
-      createdDate: DateTime.now().subtract(const Duration(days: 54)),
-      adminId: 'user11',
-      interests: ['Happy Hours', 'Networking', 'Dining'],
-      commonActivities: ['After-work drinks', 'Team lunches', 'Networking'],
-      upcomingEvents: [
-        Event(
-          id: 'e9',
-          title: 'Thursday Happy Hour',
-          description: 'Weekly happy hour at The Rooftop',
-          dateTime: DateTime.now().add(const Duration(days: 2)),
-          location: 'The Rooftop Bar',
-          attendees: 12,
-        ),
-      ],
-      pastEvents: [
-        Event(
-          id: 'e10',
-          title: 'Last Week\'s Happy Hour',
-          description: 'Fun evening at Downtown Brewery',
-          dateTime: DateTime.now().subtract(const Duration(days: 7)),
-          location: 'Downtown Brewery',
-          attendees: 10,
-        ),
-      ],
-      members: [
-        CircleMember(
-          id: 'user11',
-          identifier: 'michael@example.com',
-          name: 'Michael Scott',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user12',
-          identifier: 'pam@example.com',
-          name: 'Pam Beesly',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user13',
-          identifier: 'jim@example.com',
-          name: 'Jim Halpert',
-          status: MemberStatus.joined,
-        ),
-      ],
-      meetingFrequency: 'Weekly',
-    ),
-    Circle(
-      id: '5',
-      name: 'Family',
-      memberCount: 6,
-      description: 'Immediate family members',
-      imageUrl: null,
-      lastActivity: 'Mom\'s birthday planning in progress',
-      createdDate: DateTime.now().subtract(const Duration(days: 365)),
-      adminId: 'user14',
-      interests: ['Family Gatherings', 'Celebrations', 'Holidays'],
-      commonActivities: ['Birthday celebrations', 'Holiday gatherings', 'Family dinners'],
-      upcomingEvents: [
-        Event(
-          id: 'e11',
-          title: 'Mom\'s Birthday Dinner',
-          description: 'Surprise dinner at Mom\'s favorite restaurant',
-          dateTime: DateTime.now().add(const Duration(days: 15)),
-          location: 'Italian Bistro',
-          attendees: 6,
-        ),
-        Event(
-          id: 'e12',
-          title: 'Weekend BBQ',
-          description: 'Casual BBQ at the park',
-          dateTime: DateTime.now().add(const Duration(days: 8)),
-          location: 'City Park',
-          attendees: 6,
-        ),
-      ],
-      pastEvents: [
-        Event(
-          id: 'e13',
-          title: 'Dad\'s Birthday',
-          description: 'Celebrated at home with a special dinner',
-          dateTime: DateTime.now().subtract(const Duration(days: 30)),
-          location: 'Home',
-          attendees: 6,
-        ),
-      ],
-      members: [
-        CircleMember(
-          id: 'user14',
-          identifier: 'mom@example.com',
-          name: 'Mom',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user15',
-          identifier: 'dad@example.com',
-          name: 'Dad',
-          status: MemberStatus.joined,
-        ),
-        CircleMember(
-          id: 'user16',
-          identifier: 'sister@example.com',
-          name: 'Sister',
-          status: MemberStatus.joined,
-        ),
-      ],
-      meetingFrequency: 'Weekly',
-    ),
-  ];
+  factory Circle.fromJson(Map<String, dynamic> json) {
+    var rawMembers = json['circle_members'] as List?;
+    List<CircleMember>? parsedMembers;
+    if (rawMembers != null) {
+      parsedMembers = rawMembers
+          .map((memberData) {
+            var userProfileData = memberData['user_profiles']; 
+            if (userProfileData is Map<String, dynamic>) {
+              // Extract circle_member specific fields
+              String? statusStr = memberData['status'] as String?;
+              String? roleStr = memberData['role'] as String?;
+              String? joinedAtStr = memberData['joined_at'] as String?;
+              String? invitedAtStr = memberData['invited_at'] as String?;
+              String? requestedAtStr = memberData['requested_at'] as String?;
+              String? updatedAtStr = memberData['updated_at'] as String?; // from circle_members table
+
+              return CircleMember.fromJson(
+                userProfileData, // This is the Map<String, dynamic> for user profile
+                cId: memberData['circle_id'] as String?, // Pass circle_id if available at this level
+                memberStatus: statusStr != null ? MemberStatus.fromJson(statusStr) : MemberStatus.pending,
+                memberRole: roleStr != null ? MemberRole.fromJson(roleStr) : MemberRole.member,
+                mJoinedAt: joinedAtStr != null ? DateTime.parse(joinedAtStr) : null,
+                mInvitedAt: invitedAtStr != null ? DateTime.parse(invitedAtStr) : null,
+                mRequestedAt: requestedAtStr != null ? DateTime.parse(requestedAtStr) : null,
+                mUpdatedAt: updatedAtStr != null ? DateTime.parse(updatedAtStr) : null,
+              );
+            } else if (memberData['user_id'] is Map<String, dynamic>) { // Alternative nesting: user_id is the profile
+              Map<String, dynamic> userProfileMap = memberData['user_id'] as Map<String, dynamic>; 
+              String? statusStr = memberData['status'] as String?;
+              String? roleStr = memberData['role'] as String?;
+              String? joinedAtStr = memberData['joined_at'] as String?;
+              String? invitedAtStr = memberData['invited_at'] as String?;
+              String? requestedAtStr = memberData['requested_at'] as String?;
+              String? updatedAtStr = memberData['updated_at'] as String?;
+
+              return CircleMember.fromJson(
+                userProfileMap,
+                cId: memberData['circle_id'] as String?,
+                memberStatus: statusStr != null ? MemberStatus.fromJson(statusStr) : MemberStatus.pending,
+                memberRole: roleStr != null ? MemberRole.fromJson(roleStr) : MemberRole.member,
+                mJoinedAt: joinedAtStr != null ? DateTime.parse(joinedAtStr) : null,
+                mInvitedAt: invitedAtStr != null ? DateTime.parse(invitedAtStr) : null,
+                mRequestedAt: requestedAtStr != null ? DateTime.parse(requestedAtStr) : null,
+                mUpdatedAt: updatedAtStr != null ? DateTime.parse(updatedAtStr) : null,
+              );
+            }
+            return null; 
+          })
+          .whereType<CircleMember>()
+          .toList();
+    }
+    
+    var rawInterests = json['circle_interests'] as List?;
+    List<InterestModel>? parsedInterests;
+    if (rawInterests != null) {
+      parsedInterests = rawInterests
+        .map((interestData) {
+            var interestDetails = interestData['interests']; // Assuming 'interests' is the joined table alias
+            if (interestDetails is Map<String, dynamic>) {
+                return InterestModel.fromJson(interestDetails);
+            }
+            return null;
+        })
+        .whereType<InterestModel>()
+        .toList();
+    }
+
+    // Events are typically fetched separately based on circle_id
+    // and then filtered into upcoming/past in the app or via specific queries.
+    // For this example, let's assume they might be passed in if fetched together (less common for top-level circle list).
+    List<Event>? parsedUpcomingEvents;
+    List<Event>? parsedPastEvents;
+    if ((json['events'] as List?) != null) {
+        final now = DateTime.now();
+        List<Event> allEvents = (json['events'] as List)
+            .map((eventData) => Event.fromJson(eventData as Map<String, dynamic>))
+            .toList();
+        parsedUpcomingEvents = allEvents.where((e) => e.eventDatetime.isAfter(now)).toList();
+        parsedPastEvents = allEvents.where((e) => e.eventDatetime.isBefore(now)).toList();
+    }
+
+
+    return Circle(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      imageUrl: json['image_url'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      adminId: json['admin_id'] is Map<String,dynamic> ? json['admin_id']['id'] as String : json['admin_id'] as String, // Handle if admin_id is expanded
+      meetingFrequency: json['meeting_frequency'] as String?,
+      commonActivities: (json['common_activities'] as List?)?.map((e) => e as String).toList(),
+      lastActivity: json['last_activity'] as String?,
+      interests: parsedInterests,
+      members: parsedMembers,
+      memberCount: parsedMembers?.length ?? json['member_count'] as int?, // Derive or use if provided
+      upcomingEvents: parsedUpcomingEvents ?? (json['upcoming_events'] as List?)?.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList(),
+      pastEvents: parsedPastEvents ?? (json['past_events'] as List?)?.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    // toJson is mainly for creating/updating a circle's direct fields.
+    // Joined data like members, interests, events are managed via their own tables/endpoints.
+    return {
+      'id': id, // Usually not sent on create, but useful for updates
+      'name': name,
+      'description': description,
+      'image_url': imageUrl,
+      // 'created_at': createdAt.toIso8601String(), // সাধারণত ডাটাবেস সেট করে
+      // 'updated_at': updatedAt.toIso8601String(), // সাধারণত ডাটাবেস সেট করে
+      'admin_id': adminId,
+      'meeting_frequency': meetingFrequency,
+      'common_activities': commonActivities,
+      'last_activity': lastActivity,
+      // interests, members, events are not typically set directly in circle's json payload for create/update
+    };
+  }
 } 

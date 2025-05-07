@@ -235,44 +235,32 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
             ),
             itemBuilder: (context, index) {
               final member = provider.data.members[index];
+              final bool hasPhoto = member.avatarUrl != null;
+              final String initial = member.fullName?.isNotEmpty == true
+                  ? member.fullName![0].toUpperCase()
+                  : member.email?.isNotEmpty == true
+                      ? member.email![0].toUpperCase()
+                      : '?';
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: theme.colorScheme.accent.withOpacity(0.2),
-                  radius: 20,
-                  child: member.photoUrl != null
-                      ? ClipOval(
-                          child: Image.network(
-                            member.photoUrl!,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Text(
-                          member.name != null && member.name!.isNotEmpty
-                              ? member.name![0].toUpperCase()
-                              : member.identifier[0].toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                ),
+                leading: hasPhoto
+                    ? CircleAvatar(
+                        backgroundImage: NetworkImage(member.avatarUrl!),
+                        radius: 20,
+                      )
+                    : Text(
+                        initial,
+                      ),
                 title: Text(
-                  member.name ?? member.identifier,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.foreground,
-                  ),
+                  member.fullName ?? member.email ?? 'Unknown Member',
+                  style: theme.textTheme.p.copyWith(fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: member.name != null
+                subtitle: member.fullName != null
                     ? Text(
-                        member.identifier,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.mutedForeground,
-                        ),
+                        member.email ?? 'No identifier',
+                        style: theme.textTheme.muted,
+                        maxLines: 1,
                       )
                     : null,
                 trailing: IconButton(
@@ -313,8 +301,8 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
     
     final provider = Provider.of<CircleCreationProvider>(context, listen: false);
     
-    // Check if member already exists
-    if (provider.data.members.any((m) => m.identifier.toLowerCase() == email.toLowerCase())) {
+    // Check if email already exists in the list
+    if (provider.data.members.any((m) => m.email?.toLowerCase() == email.toLowerCase())) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('This member is already added.'),
@@ -326,12 +314,12 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
     }
     
     // Add new member
-    provider.addMember(
-      CircleMember(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // Just for demo
-        identifier: email,
-      ),
-    );
+    provider.addMember(CircleMember(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      email: email,
+      status: MemberStatus.pending,
+      role: MemberRole.member,
+    ));
     
     // Clear the field
     _memberController.clear();
@@ -439,7 +427,7 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
                       if (email.isEmpty) return const SizedBox.shrink();
                       
                       final isAdded = provider.data.members.any(
-                        (m) => m.identifier.toLowerCase() == email.toLowerCase()
+                        (m) => m.email?.toLowerCase() == email.toLowerCase()
                       );
                       
                       return CheckboxListTile(
@@ -450,10 +438,9 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
                             provider.addMember(
                               CircleMember(
                                 id: '${DateTime.now().millisecondsSinceEpoch}_${contact.id}',
-                                identifier: email,
-                                name: name,
+                                email: email,
                                 status: MemberStatus.pending,
-                                photoUrl: null, // In a real app, you might convert contact.photo to a URL
+                                role: MemberRole.member,
                               ),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -466,7 +453,7 @@ class _CircleMembersFormState extends State<CircleMembersForm> {
                             );
                           } else if (selected == false && isAdded) {
                             final memberId = provider.data.members
-                                .firstWhere((m) => m.identifier.toLowerCase() == email.toLowerCase())
+                                .firstWhere((m) => m.email?.toLowerCase() == email.toLowerCase())
                                 .id;
                             provider.removeMember(memberId);
                           }

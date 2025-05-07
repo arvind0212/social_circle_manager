@@ -30,7 +30,7 @@ dependencies:
   provider: any
   
   # Backend - Temporarily disabled for testing
-  # supabase_flutter: ^1.10.0
+  supabase_flutter: 2.7.0
   
   # Explicitly exclude sign_in_with_apple
   # sign_in_with_apple: ^5.0.0

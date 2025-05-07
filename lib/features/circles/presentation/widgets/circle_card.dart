@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'dart:math'; // Import dart:math for min()
 import '../../domain/models/circle_model.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -18,11 +19,15 @@ class CircleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     
-    // Get initials if there's no image URL
-    final initials = circle.name.split(' ')
-        .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
-        .join('')
-        .substring(0, circle.name.split(' ').length > 1 ? 2 : 1);
+    // Safer initials calculation
+    final String joinedInitials = circle.name.split(' ')
+        .where((word) => word.isNotEmpty) // Filter out empty strings from extra spaces
+        .map((word) => word[0].toUpperCase())
+        .join('');
+    final int namePartCount = circle.name.trim().split(' ').where((s) => s.isNotEmpty).length;
+    final int maxLen = namePartCount > 1 ? 2 : 1;
+    final int end = min(maxLen, joinedInitials.length); // Use min() to get safe end index
+    final String initials = joinedInitials.isNotEmpty ? joinedInitials.substring(0, end) : '?'; // Handle empty initials
 
     return AnimatedContainer(
       margin: EdgeInsets.zero,
@@ -67,6 +72,23 @@ class CircleCard extends StatelessWidget {
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              print('Error loading image ${circle.imageUrl}: $error');
+                              return Center(
+                                child: CircleAvatar(
+                                  backgroundColor: ThemeProvider.primaryBlue.withOpacity(0.15),
+                                  radius: 32,
+                                  child: Text(
+                                    initials,
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: ThemeProvider.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         )
                       : Center(
@@ -88,29 +110,25 @@ class CircleCard extends StatelessWidget {
                 Expanded(
                   flex: 5,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           circle.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.foreground,
-                          ),
-                          maxLines: 1,
+                          style: theme.textTheme.h4.copyWith(fontSize: 17, fontWeight: FontWeight.bold, height: 1.2),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.group, size: 14, color: ThemeProvider.primaryBlue),
+                            Icon(Icons.group, size: 13, color: ThemeProvider.primaryBlue),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                '${circle.memberCount} members',
+                                '${circle.memberCount ?? 0} members',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: theme.colorScheme.mutedForeground,
@@ -123,11 +141,8 @@ class CircleCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          circle.description,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.mutedForeground,
-                          ),
+                          circle.description ?? '',
+                          style: theme.textTheme.muted.copyWith(fontSize: 12, height: 1.3),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
