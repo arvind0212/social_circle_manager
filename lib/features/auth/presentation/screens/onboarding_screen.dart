@@ -84,19 +84,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
           ),
-          // Add a direct bypass button at the top
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ShadButton.outline(
-                  onPressed: _navigateDirectlyToHome,
-                  child: const Text('Skip to Home'),
-                ),
-              ),
-            ),
-          ),
           // Content
           SafeArea(
             child: Column(

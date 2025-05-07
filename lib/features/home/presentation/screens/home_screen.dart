@@ -4,7 +4,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared_components/navigation/bottom_nav_bar.dart';
 import '../../../circles/presentation/screens/circles_screen.dart';
 import '../../../events/presentation/screens/events_screen.dart';
-import '../../../explore/presentation/screens/explore_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../../main.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _screens = [
       const CirclesScreen(),
       const EventsScreen(),
-      const ExploreScreen(),
       const ProfileScreen(),
     ];
   }

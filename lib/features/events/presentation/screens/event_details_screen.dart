@@ -254,7 +254,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   ],
                 ),
               ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Title
               Text(
@@ -264,7 +264,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   height: 1.3,
                 ),
               ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
               // Description
               Text(
@@ -331,7 +331,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   ),
                 ],
               ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Budget
               Row(
@@ -351,7 +351,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   ),
                 ],
               ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // RSVP control
               _buildRsvpControl(theme).animate().fadeIn(duration: 400.ms, delay: 500.ms),
@@ -359,11 +359,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
               // Attendees section
               _buildAttendeesSection(theme).animate().fadeIn(duration: 400.ms, delay: 600.ms),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               // Attendees dropdown toggle
               _buildAttendeesDropdown(theme).animate().fadeIn(duration: 400.ms, delay: 700.ms),
               if (_showGoingList) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildGoingList(theme).animate().fadeIn(duration: 400.ms, delay: 800.ms),
               ],
             ],

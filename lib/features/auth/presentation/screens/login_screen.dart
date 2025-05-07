@@ -86,25 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           
-          // Add a skip to home button
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ShadButton.outline(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomeScreen()),
-                    );
-                  },
-                  child: const Text('Skip to Home'),
-                ),
-              ),
-            ),
-          ),
-          
           // Main content with a single parent animation
           SafeArea(
             child: SingleChildScrollView(
@@ -112,78 +93,40 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
-                    
-                    // App logo with pulse animation
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: ThemeProvider.primaryBlue.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.people_alt_outlined,
-                        size: 48,
-                        color: ThemeProvider.primaryBlue,
-                      ),
-                    ).animate(
-                      onPlay: (controller) => controller.repeat(),
-                    ).scaleXY(
-                      begin: 1,
-                      end: 1.05,
-                      duration: 2.seconds,
-                      curve: Curves.easeInOut,
-                    ).then().scaleXY(
-                      begin: 1.05,
-                      end: 1,
-                      duration: 2.seconds,
-                      curve: Curves.easeInOut,
+                    const SizedBox(height: 48), // Reduced top spacing
+                    // Centered App logo with pulse animation
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: ThemeProvider.primaryBlue.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.people_alt_outlined,
+                            size: 48,
+                            color: ThemeProvider.primaryBlue,
+                          ),
+                        ).animate(
+                          onPlay: (controller) => controller.repeat(),
+                        ).scaleXY(
+                          begin: 1,
+                          end: 1.05,
+                          duration: 2.seconds,
+                          curve: Curves.easeInOut,
+                        ).then().scaleXY(
+                          begin: 1.05,
+                          end: 1,
+                          duration: 2.seconds,
+                          curve: Curves.easeInOut,
+                        ),
+                      ],
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Welcome text
-                    Text(
-                      'Welcome Back',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: ThemeProvider.primaryBlue,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    Text(
-                      'Sign in to continue to your circles',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 32),
-                  ],
-                )
-                // Apply a single parent animation to entire login form
-                .animate()
-                .fadeIn(duration: 800.ms, curve: Curves.easeOut)
-                .moveY(begin: 20, end: 0, duration: 800.ms, curve: Curves.easeOut),
-              ),
-            ),
-          ),
-          
-          // Login form with card - this needs to be in the scroll view but animated together
-          SafeArea(
-            child: SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 170), // Offset to match header content
+                    const SizedBox(height: 16), // Slightly reduced spacing
                     
                     // Login form card
                     ShadCard(
@@ -194,6 +137,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              // Welcome text moved here, centered
+                              Text(
+                                'Welcome Back',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: ThemeProvider.primaryBlue,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Sign in to continue to your circles',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 24),
+                              
                               // Email input
                               ShadInputFormField(
                                 id: 'email',
@@ -369,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       delay: 200.ms,
                     ),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 120), // Reduced offset to move form card up
                     
                     // Don't have an account? Sign up button
                     Row(
@@ -402,7 +366,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     
                     const SizedBox(height: 40),
                   ],
-                ),
+                )
+                // Apply a single parent animation to entire login form
+                .animate()
+                .fadeIn(duration: 800.ms, curve: Curves.easeOut)
+                .moveY(begin: 20, end: 0, duration: 800.ms, curve: Curves.easeOut),
               ),
             ),
           ),
