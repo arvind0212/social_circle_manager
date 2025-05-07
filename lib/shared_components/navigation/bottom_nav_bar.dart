@@ -33,8 +33,7 @@ class BottomNavBar extends StatelessWidget {
             children: [
               _buildNavItem(0, Icons.group_outlined, 'Circles'),
               _buildNavItem(1, Icons.event_outlined, 'Events'),
-              _buildNavItem(2, Icons.search_outlined, 'Explore'),
-              _buildNavItem(3, Icons.person_outline, 'Profile'),
+              _buildNavItem(2, Icons.person_outline, 'Profile'),
             ],
           ),
         ),
@@ -44,13 +43,26 @@ class BottomNavBar extends StatelessWidget {
 
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = index == selectedIndex;
-    
+    Color selectedColor;
+    switch (index) {
+      case 0:
+        selectedColor = ThemeProvider.primaryBlue;
+        break;
+      case 1:
+        selectedColor = ThemeProvider.accentPeach;
+        break;
+      case 2:
+        selectedColor = ThemeProvider.successGreen;
+        break;
+      default:
+        selectedColor = ThemeProvider.primaryBlue;
+    }
     return InkWell(
       onTap: () => onItemSelected(index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? ThemeProvider.primaryBlue.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? selectedColor.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -58,7 +70,7 @@ class BottomNavBar extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? ThemeProvider.primaryBlue : Colors.grey,
+              color: isSelected ? selectedColor : Colors.grey,
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -67,7 +79,7 @@ class BottomNavBar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? ThemeProvider.primaryBlue : Colors.grey,
+                color: isSelected ? selectedColor : Colors.grey,
               ),
             ),
           ],

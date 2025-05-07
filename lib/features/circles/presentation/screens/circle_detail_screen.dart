@@ -5,6 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../domain/models/circle_model.dart';
 import '../../domain/models/circle_creation_model.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../../features/events/presentation/widgets/event_card.dart';
+import '../../../../../features/events/domain/models/event.dart' as events;
 
 class CircleDetailScreen extends StatefulWidget {
   final Circle circle;
@@ -86,44 +88,6 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           ),
         ),
         actions: [
-          Container(
-            margin: EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.accent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.chat_outlined,
-                color: theme.colorScheme.foreground,
-                size: 22,
-              ),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                // Open circle chat
-              },
-              tooltip: 'Chat',
-            ),
-          ),
-          if (!isSmallScreen) Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.accent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: Icon(
-                Icons.share_outlined,
-                color: theme.colorScheme.foreground,
-                size: 22,
-              ),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                // Share circle
-              },
-              tooltip: 'Share',
-            ),
-          ),
           Container(
             margin: EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
@@ -479,105 +443,82 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
   
   Widget _buildDashboardOverview(ShadThemeData theme) {
+    // Minimal, consistent 1x3 grid for summary tiles
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // More compact grid with subtle background color
-          Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: _buildSummaryTile(
+                theme,
+                icon: Icons.event_note_rounded,
+                value: '${_circle.upcomingEvents.length + _circle.pastEvents.length}',
+                label: 'Total Events',
+              ),
             ),
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                // First row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildCompactStatCard(
-                        theme, 
-                        'Total Events', 
-                        '${_circle.upcomingEvents.length + _circle.pastEvents.length}',
-                        Icons.event_note_rounded,
-                        600
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildCompactStatCard(
-                        theme, 
-                        'Upcoming', 
-                        '${_circle.upcomingEvents.length}',
-                        Icons.event_available_rounded,
-                        700
-                      ),
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 12),
-                
-                // Second row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildCompactFrequencyCard(
-                        theme, 
-                        'Frequency', 
-                        _circle.meetingFrequency,
-                        Icons.calendar_month_rounded,
-                        800
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildCompactActivityCard(
-                        theme,
-                        'Very active',
-                        '70% more active than average',
-                        0.7,
-                        900
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSummaryTile(
+                theme,
+                icon: Icons.event_available_rounded,
+                value: '${_circle.upcomingEvents.length}',
+                label: 'Upcoming',
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSummaryTile(
+                theme,
+                icon: Icons.calendar_month_rounded,
+                value: _getMonthlyEventCount(),
+                label: 'Monthly',
+              ),
+            ),
+          ],
+        ),
       ).animate()
         .fadeIn(duration: 600.ms, delay: 500.ms)
         .slideY(begin: 0.1, end: 0, duration: 500.ms),
     );
   }
-  
-  Widget _buildCompactStatCard(ShadThemeData theme, String label, String value, IconData icon, int delayMs) {
+
+  Widget _buildSummaryTile(
+    ShadThemeData theme, {
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.border.withOpacity(0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            spreadRadius: 0,
+            color: Colors.black.withOpacity(0.01),
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon in squared light blue background
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: theme.colorScheme.primary.withOpacity(0.09),
+              borderRadius: BorderRadius.circular(7),
             ),
             child: Icon(
               icon,
@@ -585,145 +526,45 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
               color: theme.colorScheme.primary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 28,
+            style: TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: theme.colorScheme.foreground,
             ),
           ),
+          const SizedBox(height: 6),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
+              fontSize: 12,
+              color: theme.colorScheme.mutedForeground,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildCompactFrequencyCard(ShadThemeData theme, String label, String frequencyText, IconData icon, int delayMs) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon in squared light blue background
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              size: 16,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "2-3 times\nmonthly", // Display frequency as shown in image
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-              height: 1.2,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildCompactActivityCard(ShadThemeData theme, String title, String subtitle, double value, int delayMs) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon in squared light blue background
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.trending_up_rounded,
-              size: 16,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          Container(
-            height: 6,
-            margin: const EdgeInsets.only(top: 6, bottom: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(3),
-              gradient: LinearGradient(
-                colors: [
-                  theme.colorScheme.primary,
-                  ThemeProvider.secondaryPurple,
-                ],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-            ),
-          ),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
+
+  String _getMonthlyEventCount() {
+    // Example logic: average events per month over the last 3 months
+    final allEvents = [..._circle.upcomingEvents, ..._circle.pastEvents];
+    if (allEvents.isEmpty) return '0';
+    final now = DateTime.now();
+    final threeMonthsAgo = DateTime(now.year, now.month - 2, 1);
+    final eventsInLast3Months = allEvents.where((e) => e.dateTime.isAfter(threeMonthsAgo)).toList();
+    final months = <int>{};
+    for (var e in eventsInLast3Months) {
+      months.add(e.dateTime.month + e.dateTime.year * 12);
+    }
+    final monthCount = months.length == 0 ? 1 : months.length;
+    final avg = (eventsInLast3Months.length / monthCount).round();
+    return avg.toString();
   }
   
   String _formatCreatedDate(DateTime date) {
@@ -954,15 +795,12 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           .slideY(begin: 0.2, end: 0, duration: 600.ms),
       );
     }
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Use a more responsive approach based on available width
-        final cardWidth = constraints.maxWidth > 600 ? 320.0 : 
+        final cardWidth = constraints.maxWidth > 600 ? 320.0 :
                          constraints.maxWidth > 360 ? 280.0 : constraints.maxWidth - 48.0;
-        
         return SizedBox(
-          // Increase height to show more content in each event card
           height: 320,
           child: ListView.builder(
             physics: const BouncingScrollPhysics(),
@@ -971,254 +809,42 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             itemCount: _circle.upcomingEvents.length,
             itemBuilder: (context, index) {
               final event = _circle.upcomingEvents[index];
-              return _buildEventCard(event, theme, index, cardWidth);
+              // Map local Event to events.Event for EventCard
+              final eventCardModel = events.Event(
+                id: event.id,
+                title: event.title,
+                description: event.description,
+                location: event.location,
+                startTime: event.dateTime,
+                endTime: event.dateTime.add(const Duration(hours: 2)), // Fallback duration
+                circleName: _circle.name,
+                circleId: _circle.id,
+                circleColor: theme.colorScheme.primary, // Use primary as default
+                attendees: event.attendees,
+                isRsvpd: null,
+              );
+              return Container(
+                width: cardWidth,
+                margin: EdgeInsets.only(
+                  left: index == 0 ? 8 : 0,
+                  right: 16,
+                  top: 8,
+                  bottom: 48,
+                ),
+                child: EventCard(
+                  event: eventCardModel,
+                  isUpcoming: true,
+                ).animate()
+                  .fadeIn(duration: 400.ms, delay: (1200 + index * 100).ms)
+                  .slideX(begin: 0.1, end: 0, duration: 600.ms),
+              );
             },
           ),
         );
-      }
+      },
     );
   }
   
-  // Helper method to build event card
-  Widget _buildEventCard(Event event, ShadThemeData theme, int index, [double width = 280]) {
-    final formattedDate = _formatEventDate(event.dateTime);
-    final isToday = _isToday(event.dateTime);
-    
-    return Container(
-      width: width,
-      margin: EdgeInsets.only(
-        left: index == 0 ? 8 : 0,
-        right: 16,
-        top: 8,
-        bottom: 48,
-      ),
-      child: ShadCard(
-        backgroundColor: theme.colorScheme.card.withOpacity(0.9),
-        padding: EdgeInsets.zero,
-        border: Border.all(
-          color: theme.colorScheme.border.withOpacity(0.3),
-          width: 1,
-        ),
-        shadows: [
-          BoxShadow(
-            color: theme.colorScheme.foreground.withOpacity(0.04),
-            blurRadius: 15,
-            spreadRadius: -5,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              // Navigate to event details
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header with date
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isToday
-                          ? [
-                              theme.colorScheme.primary.withOpacity(0.9),
-                              theme.colorScheme.secondary.withOpacity(0.9),
-                            ]
-                          : [
-                              theme.colorScheme.accent.withOpacity(0.1),
-                              theme.colorScheme.accent.withOpacity(0.06),
-                            ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isToday
-                              ? Colors.white.withOpacity(0.2)
-                              : theme.colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.calendar_today_rounded,
-                          size: 16,
-                          color: isToday
-                              ? Colors.white
-                              : theme.colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          formattedDate,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: isToday
-                                ? Colors.white
-                                : theme.colorScheme.foreground,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isToday) ...[
-                        const SizedBox(width: 8),
-                        ShadBadge(
-                          backgroundColor: Colors.white.withOpacity(0.3),
-                          foregroundColor: Colors.white,
-                          child: const Text('Today'),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                
-                // Event details
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          child: Text(
-                            event.title,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.foreground,
-                              height: 1.2,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.visible,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: Text(
-                            event.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: theme.colorScheme.mutedForeground,
-                              height: 1.4,
-                            ),
-                            // Showing more lines of description
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 16,
-                              color: theme.colorScheme.mutedForeground,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                event.location,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: theme.colorScheme.mutedForeground,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.people_outlined,
-                              size: 16,
-                              color: theme.colorScheme.mutedForeground,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${event.attendees} attendees',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: theme.colorScheme.mutedForeground,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ).animate()
-        .fadeIn(duration: 400.ms, delay: (1200 + index * 100).ms)
-        .slideX(begin: 0.1, end: 0, duration: 600.ms),
-    );
-  }
-  
-  // Helper method to format event date
-  String _formatEventDate(DateTime dateTime) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final eventDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-    
-    if (eventDate.isAtSameMomentAs(today)) {
-      return 'Today, ${_formatTimeOnly(dateTime)}';
-    } else if (eventDate.isAtSameMomentAs(tomorrow)) {
-      return 'Tomorrow, ${_formatTimeOnly(dateTime)}';
-    } else {
-      return '${_formatDateOnly(dateTime)}, ${_formatTimeOnly(dateTime)}';
-    }
-  }
-  
-  // Helper to format time only
-  String _formatTimeOnly(DateTime dateTime) {
-    final hour = dateTime.hour;
-    final minute = dateTime.minute;
-    
-    final hourDisplay = hour > 12 ? hour - 12 : hour;
-    final amPm = hour >= 12 ? 'PM' : 'AM';
-    
-    return '$hourDisplay:${minute.toString().padLeft(2, '0')} $amPm';
-  }
-  
-  // Helper to format date only
-  String _formatDateOnly(DateTime dateTime) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    
-    final month = months[dateTime.month - 1];
-    final day = dateTime.day;
-    
-    return '$month $day';
-  }
-  
-  // Helper to check if a date is today
-  bool _isToday(DateTime dateTime) {
-    final now = DateTime.now();
-    return dateTime.year == now.year && 
-           dateTime.month == now.month && 
-           dateTime.day == now.day;
-  }
-
   // Method to build members grid
   Widget _buildMembersGrid(ShadThemeData theme) {
     if (_circle.members.isEmpty) {
