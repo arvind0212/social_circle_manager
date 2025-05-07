@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/event.dart';
 import '../widgets/event_card.dart';
+import './create_event_match_screen.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({Key? key}) : super(key: key);
@@ -191,13 +192,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
 
   void _handleCreateEvent() {
     HapticFeedback.mediumImpact();
-    // TODO: Implement event creation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Create event functionality coming soon'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    // TODO: Fetch actual available circles if needed for the dropdown
+    showCreateEventMatchDialog(context, availableCircles: []);
   }
 
   @override

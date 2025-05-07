@@ -7,6 +7,8 @@ import '../../domain/models/circle_creation_model.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../../features/events/presentation/widgets/event_card.dart';
 import '../../../../../features/events/domain/models/event.dart' as events;
+import '../../../events/presentation/screens/create_event_match_screen.dart';
+import '../../../events/presentation/screens/event_matching_screen.dart';
 
 class CircleDetailScreen extends StatefulWidget {
   final Circle circle;
@@ -153,6 +155,9 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                   // Dashboard overview
                   _buildDashboardOverview(theme),
                   
+                  // Active Event Poll Card
+                  _buildActivePollCard(theme),
+                  
                   // Upcoming events section
                   const SizedBox(height: 32),
                   Padding(
@@ -270,6 +275,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           onPressed: () {
             HapticFeedback.mediumImpact();
             // Create new event
+            showCreateEventMatchDialog(context, circle: _circle);
           },
           tooltip: 'Create new event',
           child: const Icon(
@@ -1695,5 +1701,67 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     } else {
       return theme.colorScheme.accent;
     }
+  }
+
+  Widget _buildActivePollCard(ShadThemeData theme) {
+    // In a real app, you would check if there IS an active poll for this circle.
+    // For now, we'll assume there might be one and the button always navigates.
+    // You might also want to display some summary info if a poll is active.
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0), // Added top padding
+      child: ShadCard(
+        backgroundColor: theme.colorScheme.secondary.withOpacity(0.05), // Using AI purple subtly
+        border: Border.all(color: theme.colorScheme.secondary.withOpacity(0.2)),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.poll_outlined, color: theme.colorScheme.secondary, size: 22),
+                const SizedBox(width: 12),
+                Text(
+                  'Event Poll Active',
+                  style: theme.textTheme.large.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.secondary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'New event ideas are up for a vote! Tap here to see recommendations and cast your vote.',
+              style: theme.textTheme.small.copyWith(color: theme.colorScheme.mutedForeground, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            ShadButton(
+              width: double.infinity,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                // When navigating from here, we might not have specific eventPreferences
+                // that led to *this* poll. EventMatchingScreen should handle this gracefully.
+                // For now, passing an empty map or a predefined one.
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => EventMatchingScreen(
+                      circle: _circle,
+                      eventPreferences: const {}, // Or fetch/pass actual if available
+                    ),
+                  ),
+                );
+              },
+              backgroundColor: theme.colorScheme.secondary, // AI Purple
+              foregroundColor: Colors.white,
+              icon: const Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.how_to_vote_outlined, size: 16),
+              ),
+              child: const Text('View & Vote on Event Ideas'),
+            ),
+          ],
+        ),
+      ),
+    ).animate()
+        .fadeIn(duration: 600.ms, delay: 700.ms) // Adjusted delay
+        .slideY(begin: 0.1, end: 0, duration: 500.ms);
   }
 } 
