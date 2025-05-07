@@ -85,13 +85,45 @@ void main() async {
 
 Future<Circle?> getCircleFromSupabase(int circleId) async {
   // Fetch circle data from Supabase
-  final response = await Supabase.instance.client
+  final circleLookup = await Supabase.instance.client
       .from('circles')
       .select()
       .eq('id', circleId)
       .single();
 
-  print(response);
+  final members = await Supabase.instance.client
+      .from('circle_members')
+      .select()
+      .eq('circle_id', circleId);
+
+  final events = await Supabase.instance.client
+      .from('events')
+      .select()
+      .eq('circle_id', circleId);
+
+  print("Number of members " + members.length.toString());
+  print("Events " + events.length.toString());
+
+  /*
+  Circle circle = Circle(
+    id: (response['id'] as int).toString(),
+    name: response['name'] as String,
+    memberCount: response['member_count'],
+    description: response['description'],
+    imageUrl: response['image_url'],
+    lastActivity: response['last_activity'],
+    createdDate: DateTime.parse(response['created_date']),
+    adminId: response['admin_id'],
+    interests: List<String>.from(response['interests']),
+    commonActivities: List<String>.from(response['common_activities']),
+    upcomingEvents: List<Event>.from(
+      response['upcoming_events'].map((event) => Event.fromJson(event)),
+    ),
+    pastEvents: List<Event>.from(
+      response['past_events'].map((event) => Event.fromJson(event)),
+    ), 
+  )
+  */
   return null;
 }
 
