@@ -15,10 +15,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   # Core Flutter widgets
   cupertino_icons: any
-  
+  intl: ^0.19.0
   # UI Components
   flutter_svg: any
   shadcn_ui: ^0.25.0
@@ -29,6 +28,7 @@ dependencies:
   # State Management
   provider: any
   
+  http: ^1.2.0
   # Backend - Temporarily disabled for testing
   supabase_flutter: 2.7.0
   
@@ -40,7 +40,7 @@ dependencies:
   
   # Contacts
   flutter_contacts: ^1.1.7+1
-  
+  timeago: ^3.6.1
   # Calendar
   # device_calendar: any
   

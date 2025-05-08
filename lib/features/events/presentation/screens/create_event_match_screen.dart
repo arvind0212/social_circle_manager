@@ -1,8 +1,10 @@
+import 'dart:convert'; // For jsonEncode and jsonDecode
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart'; // Assuming a provider might be used later for circles
+import 'package:http/http.dart' as http; // Added for HTTP requests
+import 'package:supabase_flutter/supabase_flutter.dart'; // Added for Supabase auth
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../circles/domain/models/circle_model.dart'; // Assuming Circle model path
@@ -16,6 +18,13 @@ const List<Map<String, String>> budgetOptions = [
   {'value': 'over_50', 'label': '\$\$\$ (Over \$50)'},
   {'value': 'flexible', 'label': 'Flexible'},
 ];
+
+// --- Configuration for FastAPI ---
+// For Android Emulator: 'http://10.0.2.2:8000'
+// For iOS Simulator/localhost: 'http://127.0.0.1:8000'
+// For physical device on same network: 'http://YOUR_COMPUTER_LOCAL_IP:8000'
+const String _fastApiBaseUrl = 'http://10.0.2.2:8000'; // TODO: Verify/Update this URL
+const String _hostApiKey ="cIrclesocialmanager8903849248"; // TODO: REPLACE THIS with your actual API token from .env
 
 class CreateEventMatchScreen extends StatefulWidget {
   final Circle? preselectedCircle;
@@ -42,6 +51,8 @@ class _CreateEventMatchScreenState extends State<CreateEventMatchScreen> with Si
 
   // Mock list of circles for dropdown if none are provided
   late List<Circle> _circlesForDropdown;
+
+  bool _isSubmitting = false; // State for loading indicator
 
   @override
   void initState() {
@@ -111,66 +122,103 @@ class _CreateEventMatchScreenState extends State<CreateEventMatchScreen> with Si
     super.dispose();
   }
 
-  void _handleSubmit() {
-    HapticFeedback.mediumImpact();
-    if (_formKey.currentState!.saveAndValidate()) {
-      // In a real app, this data would be passed to an LLM or service
-      final eventMatchData = {
-        'circleId': _selectedCircle?.id,
-        'circleName': _selectedCircle?.name,
-        'eventPreferences': _eventPreferencesController.text,
-        'budget': _selectedBudget,
-        'availability': _availabilityPreferencesController.text,
-      };
-      print('Event Match Data: \$eventMatchData');
-      
-      // Pop current dialog first
-      Navigator.of(context).pop();
+  Future<void> _handleSubmit() async {
+    if (_isSubmitting) return; // Prevent double submission
 
-      // Navigate to EventMatchingScreen
-      if (_selectedCircle != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => EventMatchingScreen(
-              circle: _selectedCircle!,
-              eventPreferences: eventMatchData,
-            ),
-          ),
-        );
-      } else {
-        // Handle case where no circle is selected (should not happen if validation is correct)
+    if (_formKey.currentState!.saveAndValidate()) {
+      setState(() {
+        _isSubmitting = true; // Start loading indicator
+      });
+
+      final supabase = Supabase.instance.client;
+      final session = supabase.auth.currentSession;
+
+      if (session == null) {
+        // Handle user not logged in
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-            content: const Text('Error: No circle selected to find matches for.'),
-            backgroundColor: Colors.red.shade600,
-          ),
+          const SnackBar(content: Text("Authentication error. Please log in again."), backgroundColor: Colors.red),
         );
+        setState(() { _isSubmitting = false; }); // Stop loading
+        return;
       }
 
-      // Original SnackBar for suggestions generating is now less relevant here, 
-      // as the user is navigated to a new screen.
-      // Consider moving a similar loading state to EventMatchingScreen itself.
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     behavior: SnackBarBehavior.floating,
-      //     backgroundColor: ThemeProvider.accentPeach,
-      //     margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      //     content: const Row(
-      //       children: [
-      //         Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-      //         SizedBox(width: 12),
-      //         Expanded(
-      //           child: Text(
-      //             'Event suggestions are being generated!',
-      //             style: TextStyle(color: Colors.white),
-      //           ),
-      //         ),
-      //       ],
-      //     ),
-      //     duration: const Duration(seconds: 3),
-      //   ),
-      // );
+      final Map<String, dynamic> apiRequestBody = {
+        "circle_id": _selectedCircle!.id,
+        "event_preferences": _eventPreferencesController.text,
+        "budget": _selectedBudget, // Ensure your API handles these budget values
+        "availability": _availabilityPreferencesController.text,
+      };
+
+      final Uri endpoint = Uri.parse('$_fastApiBaseUrl/event-matching/submit');
+
+      try {
+        print('Requesting event matches from: $endpoint');
+        print('With body: ${jsonEncode(apiRequestBody)}');
+
+        final response = await http.post(
+          endpoint,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Authorization': 'Bearer ${session.accessToken}',
+            'X-API-KEY': _hostApiKey,
+          },
+          body: jsonEncode(apiRequestBody),
+        ).timeout(const Duration(seconds: 300)); // 5 minute timeout for LLM processing
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> responseData = jsonDecode(response.body);
+          print('API Success: $responseData');
+          
+          // Pop current dialog first
+          if (mounted) Navigator.of(context).pop();
+
+          // Navigate to EventMatchingScreen with results
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => EventMatchingScreen(
+                  circle: _selectedCircle!,
+                  // Pass the API response to EventMatchingScreen
+                  // You'll need to update EventMatchingScreen to accept and use this data
+                  matchingResults: responseData,
+                  eventPreferences: { // Keep original form data if needed by EventMatchingScreen for display
+                    'circleId': _selectedCircle?.id,
+                    'circleName': _selectedCircle?.name,
+                    'eventPreferences': _eventPreferencesController.text,
+                    'budget': _selectedBudget,
+                    'availability': _availabilityPreferencesController.text,
+                  },
+                ),
+              ),
+            );
+          }
+        } else {
+          print('API Error: ${response.statusCode} - ${response.body}');
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error finding matches: ${response.statusCode}. Check server logs.'),
+                backgroundColor: Colors.red.shade600,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        print('Exception during API call: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+              content: Text('Failed to connect or process request: $e. Is the server running?'),
+              backgroundColor: Colors.red.shade600,
+            ),
+          );
+        }
+      } finally {
+         setState(() {
+           _isSubmitting = false; // Stop loading indicator
+         });
+      }
     } else {
       print('Form validation failed');
       HapticFeedback.heavyImpact();
@@ -504,26 +552,34 @@ class _CreateEventMatchScreenState extends State<CreateEventMatchScreen> with Si
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          const Spacer(),
           ShadButton.outline(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).pop();
-            },
             child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: 12),
           ShadButton(
-            onPressed: _handleSubmit,
+            // Disable button and change child based on _isSubmitting
+            onPressed: _isSubmitting ? null : _handleSubmit,
             backgroundColor: ThemeProvider.accentPeach,
             foregroundColor: Colors.white,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Suggest Events'),
-                SizedBox(width: 8),
-                Icon(Icons.arrow_forward_rounded, size: 16),
-              ],
-            ),
+            child: _isSubmitting 
+                ? SizedBox(
+                    width: 16, // Consistent small size for spinner in button
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white), // Use foreground color
+                    ),
+                  )
+                : const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Suggest Events'),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 16),
+                    ],
+                  ),
           ),
         ],
       ),

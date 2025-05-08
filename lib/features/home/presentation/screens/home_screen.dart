@@ -7,6 +7,8 @@ import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../../main.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -14,6 +16,8 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
+
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;

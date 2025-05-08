@@ -89,7 +89,8 @@ class Event {
   final String createdByUserId; // Foreign Key to UserProfile
   final String title;
   final String? description;
-  final DateTime eventDatetime; // Maps to event_datetime
+  final DateTime? startTime; // Made nullable for flexibility
+  final DateTime? endTime;   // Made nullable for flexibility
   final String? location;
   final List<EventAttendee>? attendees; // Changed from List<CircleMember>
   final DateTime createdAt;
@@ -101,7 +102,8 @@ class Event {
     required this.createdByUserId,
     required this.title,
     this.description,
-    required this.eventDatetime,
+    this.startTime,
+    this.endTime,
     this.location,
     this.attendees,
     required this.createdAt,
@@ -109,19 +111,31 @@ class Event {
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
+    // Helper function to safely parse DateTime
+    DateTime? safeParseDateTime(String? dateTimeString) {
+      if (dateTimeString == null) return null;
+      try {
+        return DateTime.parse(dateTimeString);
+      } catch (e) {
+        print("Error parsing date string: '$dateTimeString'. Error: $e");
+        return null;
+      }
+    }
+
     return Event(
-      id: json['id'] as String,
-      circleId: json['circle_id'] as String,
-      createdByUserId: json['created_by_user_id'] as String,
-      title: json['title'] as String,
+      id: json['id'] as String? ?? 'missing_id', // Provide fallback
+      circleId: json['circle_id'] as String? ?? 'missing_circle_id',
+      createdByUserId: json['created_by_user_id'] as String? ?? 'missing_creator_id',
+      title: json['title'] as String? ?? 'Untitled Event', // Provide fallback
       description: json['description'] as String?,
-      eventDatetime: DateTime.parse(json['event_datetime'] as String),
+      startTime: safeParseDateTime(json['start_time'] as String?),
+      endTime: safeParseDateTime(json['end_time'] as String?),
       location: json['location'] as String?,
       attendees: (json['event_attendees'] as List?)
           ?.map((attendeeJson) => EventAttendee.fromJson(attendeeJson as Map<String, dynamic>))
           .toList(),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: safeParseDateTime(json['created_at'] as String?) ?? DateTime.now(), // Provide fallback
+      updatedAt: safeParseDateTime(json['updated_at'] as String?) ?? DateTime.now(), // Provide fallback
     );
   }
 
@@ -133,10 +147,11 @@ class Event {
       'created_by_user_id': createdByUserId,
       'title': title,
       'description': description,
-      'event_datetime': eventDatetime.toIso8601String(),
+      'start_time': startTime?.toIso8601String(),
+      'end_time': endTime?.toIso8601String(),
       'location': location,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      // 'created_at': createdAt.toIso8601String(), // Usually set by DB
+      // 'updated_at': updatedAt.toIso8601String(), // Usually set by DB
       // attendees are managed via event_attendees table typically
     };
   }
@@ -246,31 +261,39 @@ class Circle {
         .toList();
     }
 
-    // Events are typically fetched separately based on circle_id
-    // and then filtered into upcoming/past in the app or via specific queries.
-    // For this example, let's assume they might be passed in if fetched together (less common for top-level circle list).
+    // Events parsing needs null safety check for the list itself
     List<Event>? parsedUpcomingEvents;
     List<Event>? parsedPastEvents;
-    if ((json['events'] as List?) != null) {
+    var rawEvents = json['events'] as List?;
+    if (rawEvents != null) {
         final now = DateTime.now();
-        List<Event> allEvents = (json['events'] as List)
-            .map((eventData) => Event.fromJson(eventData as Map<String, dynamic>))
-            .toList();
-        parsedUpcomingEvents = allEvents.where((e) => e.eventDatetime.isAfter(now)).toList();
-        parsedPastEvents = allEvents.where((e) => e.eventDatetime.isBefore(now)).toList();
+        List<Event> allEvents = [];
+        for (var eventData in rawEvents) {
+          if (eventData is Map<String, dynamic>) { // Ensure it's a map
+            try {
+              allEvents.add(Event.fromJson(eventData));
+            } catch (e) {
+              print("Error parsing an event within Circle.fromJson: $e. Event data: $eventData");
+              // Skip this invalid event
+            }
+          }
+        }
+        // Filter only after successful parsing
+        parsedUpcomingEvents = allEvents.where((e) => e.startTime != null && e.startTime!.isAfter(now)).toList();
+        parsedPastEvents = allEvents.where((e) => e.startTime != null && e.startTime!.isBefore(now)).toList();
     }
 
 
     return Circle(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? 'missing_id', // Add fallback
+      name: json['name'] as String? ?? 'Unnamed Circle', // Add fallback
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      adminId: json['admin_id'] is Map<String,dynamic> ? json['admin_id']['id'] as String : json['admin_id'] as String, // Handle if admin_id is expanded
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(), // Add fallback
+      updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ?? DateTime.now(), // Add fallback
+      adminId: json['admin_id'] as String? ?? 'missing_admin',
       meetingFrequency: json['meeting_frequency'] as String?,
-      commonActivities: (json['common_activities'] as List?)?.map((e) => e as String).toList(),
+      commonActivities: (json['common_activities'] as List?)?.map((e) => e as String? ?? '').whereType<String>().toList(), // Handle potential nulls in list
       lastActivity: json['last_activity'] as String?,
       interests: parsedInterests,
       members: parsedMembers,
@@ -296,5 +319,85 @@ class Circle {
       'last_activity': lastActivity,
       // interests, members, events are not typically set directly in circle's json payload for create/update
     };
+  }
+}
+
+// Add CircleMember, MemberStatus, MemberRole enums here if they are not defined elsewhere
+// Assuming they exist as previously shown
+
+enum MemberStatus {
+  pending, invited, requested, joined, rejected, left, banned;
+  String toJson() => name;
+  static MemberStatus fromJson(String json) => values.byName(json);
+}
+
+enum MemberRole {
+  member, admin, moderator;
+  String toJson() => name;
+  static MemberRole fromJson(String json) => values.byName(json);
+}
+
+class CircleMember {
+  final String id; // User ID from user_profiles
+  final String? fullName;
+  final String? avatarUrl;
+  final String? email; // Added email
+  final DateTime? userUpdatedAt; // Added user profile updated_at
+
+  // Membership specific details
+  final String? circleId; // Added circleId if needed
+  final MemberStatus status;
+  final MemberRole role;
+  final DateTime? joinedAt;
+  final DateTime? invitedAt;
+  final DateTime? requestedAt;
+  final DateTime? memberRecordUpdatedAt; // updated_at from circle_members table
+
+  CircleMember({
+    required this.id,
+    this.fullName,
+    this.avatarUrl,
+    this.email,
+    this.userUpdatedAt,
+    // Membership details
+    this.circleId,
+    required this.status,
+    required this.role,
+    this.joinedAt,
+    this.invitedAt,
+    this.requestedAt,
+    this.memberRecordUpdatedAt,
+  });
+
+  factory CircleMember.fromJson(Map<String, dynamic> userProfileJson, {
+    String? cId,
+    MemberStatus memberStatus = MemberStatus.pending,
+    MemberRole memberRole = MemberRole.member,
+    DateTime? mJoinedAt,
+    DateTime? mInvitedAt,
+    DateTime? mRequestedAt,
+    DateTime? mUpdatedAt,
+  }) {
+     DateTime? safeParseDateTime(String? dateTimeString) {
+      if (dateTimeString == null) return null;
+      try {
+        return DateTime.parse(dateTimeString);
+      } catch (e) { return null; }
+    }
+    return CircleMember(
+      id: userProfileJson['id'] as String? ?? 'missing_user_id',
+      fullName: userProfileJson['full_name'] as String?,
+      avatarUrl: userProfileJson['avatar_url'] as String?,
+      email: userProfileJson['email'] as String?, // Parse email
+      userUpdatedAt: safeParseDateTime(userProfileJson['updated_at'] as String?), // Parse user updated_at
+      // Assign membership details
+      circleId: cId, 
+      status: memberStatus,
+      role: memberRole,
+      joinedAt: mJoinedAt,
+      invitedAt: mInvitedAt,
+      requestedAt: mRequestedAt,
+      memberRecordUpdatedAt: mUpdatedAt,
+    );
   }
 } 

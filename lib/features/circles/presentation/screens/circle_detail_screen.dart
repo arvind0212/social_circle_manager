@@ -3,8 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:math'; // Import dart:math for min()
+import 'package:intl/intl.dart'; // Add this for DateFormat
+import 'package:timeago/timeago.dart' as timeago; // Add this import
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import 'dart:convert'; // Import for jsonDecode
 import '../../domain/models/circle_model.dart';
-import '../../domain/models/circle_creation_model.dart';
 import '../../data/circle_service.dart'; // Import the service
 import '../../../../core/theme/app_theme.dart';
 import '../../../../../features/events/presentation/widgets/event_card.dart' as event_widgets; // Alias event card import
@@ -28,11 +31,17 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   late AnimationController _animationController;
   final ScrollController _scrollController = ScrollController();
   final CircleService _circleService = CircleService();
+  final supabase = Supabase.instance.client; // Add Supabase client instance
 
   // State variables for detailed data
   Circle? _detailedCircle;
   bool _isLoading = true;
   String? _errorMessage;
+
+  // State variables for active session polling
+  bool _isLoadingActiveSession = true;
+  String? _activeSessionId;
+  Map<String, dynamic>? _activeSessionResults; // To store {session_id: ..., recommendations: [...]} 
 
   @override
   void initState() {
@@ -53,14 +62,21 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _isLoadingActiveSession = true; // Reset active session loading too
+      _activeSessionId = null;
+      _activeSessionResults = null;
     });
     try {
       final detailedData = await _circleService.getCircleById(widget.circle.id);
       if (mounted) {
         setState(() {
           _detailedCircle = detailedData;
-          _isLoading = false;
+          _isLoading = false; // Stop main loading
         });
+        
+        // Start fetch for active session *after* main details are loaded
+        _fetchActiveSession(); 
+        
         // Start animation after data is loaded
         Future.delayed(const Duration(milliseconds: 50), () {
           if (mounted) {
@@ -75,6 +91,97 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           _errorMessage = e.toString();
           // Keep basic data if detail fetch fails, but show error
           _detailedCircle = widget.circle;
+        });
+      }
+    }
+  }
+  
+  Future<void> _fetchActiveSession() async {
+    setState(() {
+      _isLoadingActiveSession = true;
+      _activeSessionId = null;
+      _activeSessionResults = null;
+    });
+
+    print("Checking for active voting session for circle ${widget.circle.id}...");
+
+    try {
+      // 1. Find the latest session with status 'voting_open' for this circle
+      final List<dynamic> openSessions = await supabase
+          .from('event_matching_sessions')
+          .select('id')
+          .eq('circle_id', widget.circle.id)
+          .eq('status', 'voting_open')
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (openSessions.isNotEmpty && mounted) {
+        final String sessionId = openSessions[0]['id'] as String;
+        print("Found active voting session: $sessionId");
+        setState(() {
+          _activeSessionId = sessionId;
+        });
+
+        // 2. Fetch recommendations for this session using the RPC
+        print("Fetching recommendations for session: $sessionId using RPC...");
+        final dynamic rpcResult = await supabase.rpc(
+          'get_recommendations_for_session',
+          params: {'session_uuid': sessionId},
+        );
+        print("RPC Result raw: $rpcResult, type: ${rpcResult.runtimeType}");
+        
+        // The RPC returns JSONB, which the Dart client might parse differently.
+        // Often it comes back as a List<dynamic> if it's a JSON array.
+        if (rpcResult != null && rpcResult is List && mounted) {
+           print("Successfully fetched ${rpcResult.length} recommendations via RPC.");
+          // Construct the matchingResults map expected by EventMatchingScreen
+          setState(() {
+             _activeSessionResults = {
+              'session_id': sessionId, 
+              'recommendations': rpcResult 
+            };
+            _isLoadingActiveSession = false;
+          });
+        } else if (rpcResult != null && mounted) {
+          // Handle cases where it might not be a list but still has data
+          print("Warning: RPC result was not a List but was: ${rpcResult.runtimeType}");
+          // Attempt to handle if it's a string representing JSON array
+           if (rpcResult is String) {
+              try {
+                final decodedList = jsonDecode(rpcResult) as List?;
+                if (decodedList != null) {
+                   setState(() {
+                     _activeSessionResults = {
+                      'session_id': sessionId, 
+                      'recommendations': decodedList 
+                    };
+                    _isLoadingActiveSession = false;
+                  });
+                } else {
+                  throw FormatException("Decoded JSON string was not a list.");
+                }
+              } catch (e) {
+                 print("Error decoding RPC result string: $e");
+                 setState(() { _isLoadingActiveSession = false; }); // Stop loading on error
+              }
+           } else {
+              setState(() { _isLoadingActiveSession = false; }); // Stop loading if format unexpected
+           }
+        } else if (mounted) {
+          print("No recommendations found for session $sessionId or RPC returned null.");
+          setState(() { _isLoadingActiveSession = false; });
+        }
+      } else if (mounted) {
+        print("No active voting session found for circle ${widget.circle.id}.");
+        setState(() { _isLoadingActiveSession = false; });
+      }
+    } catch (e, stacktrace) {
+      print('Error fetching active session or recommendations: $e');
+      print('Stacktrace: $stacktrace');
+      if (mounted) {
+        setState(() {
+          _isLoadingActiveSession = false;
+          // Optionally show an error message specific to fetching the poll
         });
       }
     }
@@ -620,10 +727,10 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
     final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
     // Handle nullable upcomingEvents and pastEvents by providing empty lists if null
     final allEvents = [...(circle.upcomingEvents ?? []), ...(circle.pastEvents ?? [])];
-    final eventsInLast3Months = allEvents.where((e) => e.eventDatetime.isAfter(threeMonthsAgo)).toList(); // Use eventDatetime
+    final eventsInLast3Months = allEvents.where((e) => e.startTime?.isAfter(threeMonthsAgo) ?? false).toList(); // Use startTime
     final months = <int>{};
     for (var e in eventsInLast3Months) {
-      months.add(e.eventDatetime.month + e.eventDatetime.year * 12); // Use eventDatetime
+      months.add(e.startTime?.month ?? 0 + (e.startTime?.year ?? 0) * 12 ?? 0); // Use startTime
     }
     final monthCount = months.length == 0 ? 1 : months.length;
     final avg = (eventsInLast3Months.length / monthCount).round();
@@ -862,17 +969,21 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             itemBuilder: (context, index) {
               final event = circle.upcomingEvents![index];
               // Map event data using the actual event object
+              // Provide default DateTime if startTime is null
+              final startTimeOrDefault = event.startTime ?? DateTime.now();
+              final endTimeOrDefault = event.endTime ?? startTimeOrDefault.add(const Duration(hours: 2));
+
               final eventCardModel = events.Event(
                 id: event.id,
                 title: event.title,
                 description: event.description ?? 'No description.',
                 location: event.location ?? 'Not specified.',
-                startTime: event.eventDatetime,
-                endTime: event.eventDatetime.add(const Duration(hours: 2)),
+                startTime: startTimeOrDefault, // Pass non-nullable DateTime
+                endTime: endTimeOrDefault,      // Pass non-nullable DateTime
                 circleName: circle.name,
                 circleId: circle.id,
-                circleColor: theme.colorScheme.primary,
-                attendees: event.attendees?.length ?? 0,
+                circleColor: theme.colorScheme.primary, 
+                attendees: event.attendees?.length ?? 0, 
                 isRsvpd: null, // Or determine based on current user later
               );
               return Container(
@@ -1242,7 +1353,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   Widget _buildActivityTimeline(ShadThemeData theme, Circle circle) {
     // Combine past events with most recent first
     final timelineEvents = [...(circle.pastEvents ?? [])]
-      ..sort((a, b) => b.eventDatetime.compareTo(a.eventDatetime));
+      ..sort((a, b) => b.startTime?.compareTo(a.startTime) ?? DateTime.now().compareTo(DateTime.now()));
     
     if (timelineEvents.isEmpty) {
       return Padding(
@@ -1340,8 +1451,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   
   // Helper method to build timeline item
   Widget _buildTimelineItem(Event event, ShadThemeData theme, int index, bool isLast) {
-    final formattedDate = _formatTimelineDate(event.eventDatetime);
-    final timeAgo = _getTimeAgo(event.eventDatetime);
+    final formattedDate = _formatTimelineDate(event.startTime);
+    final timeAgo = _getTimeAgo(event.startTime);
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1552,39 +1663,31 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
   
   // Helper method to format timeline date
-  String _formatTimelineDate(DateTime dateTime) {
-    final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    final month = months[dateTime.month - 1];
-    final day = dateTime.day;
-    final year = dateTime.year;
-    
-    return '$month $day, $year';
+  String _formatTimelineDate(DateTime? dateTime) {
+    if (dateTime == null) return 'Date TBD';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final yesterday = today.subtract(const Duration(days: 1));
+    final eventDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+
+    if (eventDate == today) {
+      return 'Today at ${DateFormat.jm().format(dateTime)}';
+    } else if (eventDate == tomorrow) {
+      return 'Tomorrow at ${DateFormat.jm().format(dateTime)}';
+    } else if (eventDate == yesterday) {
+      return 'Yesterday at ${DateFormat.jm().format(dateTime)}';
+    } else if (dateTime.year == now.year) {
+      return DateFormat('MMM d, hh:mm a').format(dateTime);
+    } else {
+      return DateFormat('MMM d, yyyy, hh:mm a').format(dateTime);
+    }
   }
   
   // Helper method to get time ago text
-  String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-    
-    if (difference.inDays > 365) {
-      final years = (difference.inDays / 365).floor();
-      return '$years ${years == 1 ? 'year' : 'years'} ago';
-    } else if (difference.inDays > 30) {
-      final months = (difference.inDays / 30).floor();
-      return '$months ${months == 1 ? 'month' : 'months'} ago';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-    } else {
-      return 'Just now';
-    }
+  String _getTimeAgo(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    return timeago.format(dateTime);
   }
   
   // Helper method to get event type icon
@@ -1652,14 +1755,43 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   }
 
   Widget _buildActivePollCard(ShadThemeData theme, Circle circle) {
-    // In a real app, you would check if there IS an active poll for this circle.
-    // For now, we'll assume there might be one and the button always navigates.
-    // You might also want to display some summary info if a poll is active.
+    if (_isLoadingActiveSession) {
+      // Show a subtle loading indicator for the poll card
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+        child: ShadCard(
+           backgroundColor: theme.colorScheme.secondary.withOpacity(0.05),
+           border: Border.all(color: theme.colorScheme.secondary.withOpacity(0.2)),
+           padding: const EdgeInsets.all(20),
+           child: Row(
+             children: [
+               SizedBox(
+                 width: 16, 
+                 height: 16, 
+                 child: CircularProgressIndicator(
+                   strokeWidth: 2, 
+                   valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.secondary), // Use theme color
+                 ),
+               ),
+               const SizedBox(width: 12),
+               Text("Checking for active polls...", style: theme.textTheme.small.copyWith(color: theme.colorScheme.mutedForeground))
+             ],
+           )
+        ).animate().fadeIn(duration: 300.ms)
+      );
+    }
 
+    // Only show the card if an active session and its results were found
+    if (_activeSessionId == null || _activeSessionResults == null) {
+      // Optionally return an empty container or a different placeholder
+      return const SizedBox.shrink(); // Don't show the card if no active poll
+    }
+
+    // Active poll found, display the card with the button
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0), // Added top padding
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0), 
       child: ShadCard(
-        backgroundColor: theme.colorScheme.secondary.withOpacity(0.05), // Using AI purple subtly
+        backgroundColor: theme.colorScheme.secondary.withOpacity(0.05),
         border: Border.all(color: theme.colorScheme.secondary.withOpacity(0.2)),
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1683,19 +1815,25 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             const SizedBox(height: 16),
             ShadButton(
               width: double.infinity,
-              onPressed: () {
+              onPressed: () async {
                 HapticFeedback.lightImpact();
-                // When navigating from here, we might not have specific eventPreferences
-                // that led to *this* poll. EventMatchingScreen should handle this gracefully.
-                // For now, passing an empty map or a predefined one.
-                Navigator.of(context).push(
+
+                // Use await to wait for EventMatchingScreen to pop
+                final result = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(
                     builder: (context) => EventMatchingScreen(
                       circle: circle,
-                      eventPreferences: const {}, // Or fetch/pass actual if available
+                      eventPreferences: const {},
+                      matchingResults: _activeSessionResults,
                     ),
                   ),
                 );
+
+                // Check if the result is true (indicating successful event creation)
+                if (result == true && mounted) {
+                  print("Returned from EventMatchingScreen with success, refreshing circle details...");
+                  _fetchCircleDetails();
+                }
               },
               backgroundColor: theme.colorScheme.secondary, // AI Purple
               foregroundColor: Colors.white,
