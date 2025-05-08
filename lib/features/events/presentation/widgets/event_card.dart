@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/event.dart';
+import '../../data/services/event_service.dart';
 import '../screens/event_details_screen.dart';
 
 // RSVP status options
@@ -14,11 +16,13 @@ enum RSVPStatus { none, going, maybe, notGoing }
 class EventCard extends StatefulWidget {
   final Event event;
   final bool isUpcoming;
+  final Future<void> Function()? onRsvpUpdated;
   
   const EventCard({
     Key? key,
     required this.event,
     required this.isUpcoming,
+    this.onRsvpUpdated,
   }) : super(key: key);
 
   @override
@@ -27,10 +31,23 @@ class EventCard extends StatefulWidget {
 
 class _EventCardState extends State<EventCard> {
   late RSVPStatus _status;
+  bool _isUpdatingRsvp = false;
 
   @override
   void initState() {
     super.initState();
+    _updateLocalStatusFromEvent();
+  }
+
+  @override
+  void didUpdateWidget(covariant EventCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.event.isRsvpd != oldWidget.event.isRsvpd) {
+      _updateLocalStatusFromEvent();
+    }
+  }
+
+  void _updateLocalStatusFromEvent() {
     _status = widget.event.isRsvpd == true
       ? RSVPStatus.going
       : widget.event.isRsvpd == false
@@ -38,7 +55,22 @@ class _EventCardState extends State<EventCard> {
         : RSVPStatus.none;
   }
 
+  String _rsvpStatusToString(RSVPStatus status) {
+    switch (status) {
+      case RSVPStatus.going:
+        return 'going';
+      case RSVPStatus.notGoing:
+        return 'not_going';
+      case RSVPStatus.maybe:
+        return 'maybe';
+      case RSVPStatus.none:
+        throw ArgumentError('RSVPStatus.none should not be directly converted to a string for an update. Handle this case before calling.');
+    }
+  }
+
   void _showRsvpOptions() async {
+    if (_isUpdatingRsvp) return;
+
     final selected = await showModalBottomSheet<RSVPStatus>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -47,25 +79,25 @@ class _EventCardState extends State<EventCard> {
         return Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.card,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: RSVPStatus.values.map((option) => ListTile(
               leading: Icon(
                 option == RSVPStatus.going
-                  ? Icons.check_circle_outline
+                  ? Icons.check_circle_outline_rounded
                   : option == RSVPStatus.notGoing
                       ? Icons.cancel_outlined
                       : option == RSVPStatus.maybe
-                          ? Icons.help_outline
+                          ? Icons.help_outline_rounded
                           : Icons.how_to_vote_outlined,
                 color: option == RSVPStatus.going
-                  ? widget.event.circleColor
+                  ? ThemeProvider.accentPeach
                   : option == RSVPStatus.notGoing
-                      ? Colors.red.shade600
+                      ? theme.colorScheme.destructive
                       : option == RSVPStatus.maybe
-                          ? ThemeProvider.accentPeach
+                          ? theme.colorScheme.primary
                           : theme.colorScheme.foreground,
               ),
               title: Text(
@@ -81,10 +113,42 @@ class _EventCardState extends State<EventCard> {
         );
       },
     );
-    if (selected != null) {
+
+    if (selected != null && selected != _status) {
+      final statusForDb = (selected == RSVPStatus.none) ? 'maybe' : _rsvpStatusToString(selected);
+
       setState(() {
-        _status = selected;
+        _isUpdatingRsvp = true;
       });
+
+      try {
+        final eventService = Provider.of<EventService>(context, listen: false);
+        await eventService.updateRsvpStatus(widget.event.id, statusForDb);
+        
+        if (mounted) {
+          setState(() {
+            _status = selected;
+          });
+          ShadToaster.of(context).show(
+            ShadToast(description: Text('RSVP status updated to ${statusForDb.capitalize()}.')),
+          );
+          widget.onRsvpUpdated?.call();
+        }
+      } catch (e) {
+        if (mounted) {
+          ShadToaster.of(context).show(
+            ShadToast.destructive(
+              title: const Text('Update Failed'),
+              description: Text('Could not update RSVP status: ${e.toString()}'),
+            ),
+          );
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _isUpdatingRsvp = false;
+        });
+      }
     }
   }
 
@@ -346,7 +410,6 @@ class _EventCardState extends State<EventCard> {
   }
   
   Widget _buildRsvpButton(ShadThemeData theme) {
-    // Determine label, icon, and color based on status
     final label = _status == RSVPStatus.going
         ? 'Going'
         : _status == RSVPStatus.notGoing
@@ -354,50 +417,82 @@ class _EventCardState extends State<EventCard> {
             : _status == RSVPStatus.maybe
                 ? 'Maybe'
                 : 'RSVP';
-    final icon = _status == RSVPStatus.going
-        ? Icons.check_circle_outline
+    final iconData = _status == RSVPStatus.going
+        ? Icons.check_circle_rounded 
         : _status == RSVPStatus.notGoing
-            ? Icons.cancel_outlined
+            ? Icons.cancel_rounded 
             : _status == RSVPStatus.maybe
-                ? Icons.help_outline
+                ? Icons.help_rounded 
                 : Icons.how_to_vote_outlined;
-    final fgColor = _status == RSVPStatus.going
-        ? widget.event.circleColor
-        : _status == RSVPStatus.notGoing
-            ? Colors.red.shade600
-            : ThemeProvider.accentPeach;
-
-    if (_status == RSVPStatus.none) {
-      return ShadButton.outline(
-        onPressed: _showRsvpOptions,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        leading: Padding(
-          padding: const EdgeInsets.only(right: 4.0),
-          child: Icon(icon, size: 13),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-        ),
-        foregroundColor: fgColor,
-      );
-    }
-
-    // Filled button for selected status
-    return ShadButton(
-      onPressed: _showRsvpOptions,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      leading: Padding(
-        padding: const EdgeInsets.only(right: 4.0),
-        child: Icon(icon, size: 13),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-      ),
-      backgroundColor: fgColor,
-      foregroundColor: Colors.white,
+    
+    final Widget iconWidget = Padding(
+      padding: const EdgeInsets.only(right: 4.0),
+      child: Icon(iconData, size: 13),
     );
+
+    final Widget loadingIndicator = SizedBox(
+      width: 12, 
+      height: 12, 
+      child: CircularProgressIndicator(strokeWidth: 2)
+    );
+
+    final Text labelWidget = Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500));
+
+    final commonProps = {
+      'onPressed': _isUpdatingRsvp ? null : _showRsvpOptions,
+      'width': _isUpdatingRsvp ? 100.0 : null,
+      'padding': const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      'leading': _isUpdatingRsvp ? loadingIndicator : iconWidget,
+      'child': labelWidget,
+    };
+
+    switch (_status) {
+      case RSVPStatus.going:
+        return ShadButton(
+          onPressed: _isUpdatingRsvp ? null : _showRsvpOptions,
+          width: _isUpdatingRsvp ? 100.0 : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          leading: _isUpdatingRsvp 
+              ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : Padding(padding: const EdgeInsets.only(right: 4.0), child: Icon(iconData, size: 13, color: Colors.white)),
+          child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
+          backgroundColor: ThemeProvider.accentPeach,
+        );
+      case RSVPStatus.notGoing:
+        return ShadButton.destructive(
+          onPressed: _isUpdatingRsvp ? null : _showRsvpOptions,
+          width: _isUpdatingRsvp ? 100.0 : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          leading: _isUpdatingRsvp 
+              ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+              : Padding(padding: const EdgeInsets.only(right: 4.0), child: Icon(iconData, size: 13, color: Colors.white)),
+          child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white)),
+          // Destructive typically handles its own background color, ensure text/icon are white if needed by overriding child/leading styles
+        );
+      case RSVPStatus.maybe:
+        return ShadButton.outline(
+          onPressed: _isUpdatingRsvp ? null : _showRsvpOptions,
+          width: _isUpdatingRsvp ? 100.0 : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          leading: _isUpdatingRsvp 
+              ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary)) 
+              : Padding(padding: const EdgeInsets.only(right: 4.0), child: Icon(iconData, size: 13, color: theme.colorScheme.primary)),
+          child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: theme.colorScheme.primary)),
+          foregroundColor: theme.colorScheme.primary, // Sets border color and default text/icon color for outline
+        );
+      case RSVPStatus.none:
+      default:
+        return ShadButton.outline(
+          onPressed: _isUpdatingRsvp ? null : _showRsvpOptions,
+          width: _isUpdatingRsvp ? 100.0 : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          leading: _isUpdatingRsvp 
+              ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: ThemeProvider.accentPeach)) 
+              : Padding(padding: const EdgeInsets.only(right: 4.0), child: Icon(iconData, size: 13, color: ThemeProvider.accentPeach)),
+          child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: ThemeProvider.accentPeach)),
+          foregroundColor: ThemeProvider.accentPeach, // Sets border color and default text/icon color for outline
+        );
+    }
   }
   
   Widget _buildViewButton(ShadThemeData theme) {
@@ -458,4 +553,11 @@ class _EventCardState extends State<EventCard> {
       ),
     );
   }
+}
+
+extension StringExtension on String {
+    String capitalize() {
+      if (this.isEmpty) return "";
+      return "${this[0].toUpperCase()}${this.substring(1).toLowerCase()}";
+    }
 } 

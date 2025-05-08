@@ -9,6 +9,7 @@ import 'features/home/presentation/screens/home_screen.dart';
 import 'features/circles/domain/models/circle_model.dart';
 import 'features/circles/domain/models/circle_creation_model.dart';
 import 'features/circles/presentation/screens/circle_detail_screen.dart';
+import 'features/events/data/services/event_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,13 @@ void main() async {
       providers: [
         // Add providers here as needed
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        // Provide SupabaseClient instance
+        Provider<SupabaseClient>(create: (_) => Supabase.instance.client),
+        // Provide EventService, which depends on SupabaseClient
+        ProxyProvider<SupabaseClient, EventService>(
+          update: (context, supabaseClient, previousEventService) => 
+              EventService(supabaseClient),
+        ),
       ],
       child: const MyApp(),
     ),

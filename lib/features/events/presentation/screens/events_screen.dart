@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+// import 'package:intl/intl.dart'; // Intl is not directly used in the provided diff, but was in original
 
 import '../../../../core/theme/app_theme.dart';
-import '../../domain/models/event.dart';
+import '../../domain/models/event.dart'; // Updated path
+import '../../data/services/event_service.dart'; // Import EventService
 import '../widgets/event_card.dart';
 import './create_event_match_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // For Supabase client access if needed directly or for service init
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({Key? key}) : super(key: key);
@@ -22,12 +24,18 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
   bool _isLoading = true;
   List<Event> _upcomingEvents = [];
   List<Event> _pastEvents = [];
+  String? _errorMessage;
+  late EventService _eventService; // Declare EventService
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
+    // It's better to initialize EventService in didChangeDependencies or pass it via constructor/provider
+    // For this example, initializing here. Ensure Supabase.instance.client is ready.
+    // If using Provider, you'd get it from context.
+    _eventService = EventService(Supabase.instance.client);
     _loadEvents();
   }
 
@@ -39,167 +47,64 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
   }
 
   void _handleTabChange() {
-    // Rebuild UI when the tab index changes (including swipe actions)
-    setState(() {});
-    // Provide haptic feedback on tap/animateTo changes
+    if (mounted) {
+      setState(() {});
+    }
     if (_tabController.indexIsChanging) {
       HapticFeedback.selectionClick();
     }
   }
 
   Future<void> _loadEvents() async {
-    // Simulate loading for now - replace with actual data fetch
-    await Future.delayed(const Duration(milliseconds: 800));
-    
-    // Mock data for testing the UI - using more realistic and diverse data
+    if (!mounted) return;
     setState(() {
-      _upcomingEvents = [
-        Event(
-          id: '1',
-          title: 'Coffee Chat & Catch-up',
-          description: 'Casual morning coffee with the team to discuss upcoming projects and industry trends',
-          location: 'Starbucks Downtown, 123 Main St',
-          startTime: DateTime.now().add(const Duration(days: 0, hours: 3)),
-          endTime: DateTime.now().add(const Duration(days: 0, hours: 5)),
-          circleName: 'Work Friends',
-          circleId: 'c1',
-          circleColor: ThemeProvider.primaryBlue,
-          attendees: 4,
-          isRsvpd: true,
-        ),
-        Event(
-          id: '2',
-          title: 'Movie Night: Dune Part Two',
-          description: 'Watching the new sci-fi blockbuster followed by dinner and discussion',
-          location: 'AMC Theaters, West Plaza Mall',
-          startTime: DateTime.now().add(const Duration(days: 2, hours: 19)),
-          endTime: DateTime.now().add(const Duration(days: 2, hours: 22)),
-          circleName: 'Movie Club',
-          circleId: 'c2',
-          circleColor: ThemeProvider.secondaryPurple,
-          attendees: 6,
-          isRsvpd: null,
-        ),
-        Event(
-          id: '3',
-          title: 'Sunrise Hike & Breakfast',
-          description: 'Moderate trail with beautiful views followed by breakfast at the Eagle Mountain Lodge',
-          location: 'Eagle Mountain Trail, North Entrance',
-          startTime: DateTime.now().add(const Duration(days: 5, hours: 6)),
-          endTime: DateTime.now().add(const Duration(days: 5, hours: 11)),
-          circleName: 'Adventure Group',
-          circleId: 'c3',
-          circleColor: Colors.green.shade700,
-          attendees: 5,
-        ),
-        Event(
-          id: '4',
-          title: 'Potluck Dinner Party',
-          description: 'Bring your favorite dish! Theme is international cuisine. BYOB encouraged.',
-          location: 'Sarah\'s Place, 456 Oak Avenue, Apt 7B',
-          startTime: DateTime.now().add(const Duration(days: 7, hours: 18)),
-          endTime: DateTime.now().add(const Duration(days: 7, hours: 22)),
-          circleName: 'Close Friends',
-          circleId: 'c4',
-          circleColor: ThemeProvider.accentPeach,
-          attendees: 8,
-          isRsvpd: false,
-        ),
-        Event(
-          id: '9',
-          title: 'Art Gallery Opening',
-          description: 'Contemporary art exhibition featuring local artists. Wine and refreshments provided.',
-          location: 'Downtown Gallery, 789 Arts District',
-          startTime: DateTime.now().add(const Duration(days: 10, hours: 19)),
-          endTime: DateTime.now().add(const Duration(days: 10, hours: 21)),
-          circleName: 'Culture Club',
-          circleId: 'c9',
-          circleColor: Colors.purple.shade700,
-          attendees: 7,
-        ),
-        Event(
-          id: '10',
-          title: 'Weekend Beach Trip',
-          description: 'Three-day getaway to the coast. Activities include swimming, hiking, and campfire.',
-          location: 'Sunset Beach, Cabin 12',
-          startTime: DateTime.now().add(const Duration(days: 14, hours: 10)),
-          endTime: DateTime.now().add(const Duration(days: 16, hours: 17)),
-          circleName: 'Adventure Group',
-          circleId: 'c3',
-          circleColor: Colors.green.shade700,
-          attendees: 9,
-        ),
-      ];
-      
-      _pastEvents = [
-        Event(
-          id: '5',
-          title: 'Book Club: "The Midnight Library"',
-          description: 'Discussion of Matt Haig\'s novel exploring the choices that make a life worth living',
-          location: 'City Central Library, Meeting Room 3',
-          startTime: DateTime.now().subtract(const Duration(days: 3, hours: 18)),
-          endTime: DateTime.now().subtract(const Duration(days: 3, hours: 20)),
-          circleName: 'Book Lovers',
-          circleId: 'c5',
-          circleColor: Colors.teal.shade700,
-          attendees: 7,
-          isRsvpd: true,
-        ),
-        Event(
-          id: '6',
-          title: 'Board Game & Pizza Night',
-          description: 'Casual evening of strategy games, card games, and plenty of snacks',
-          location: 'Mike\'s Apartment, 789 Pine Street',
-          startTime: DateTime.now().subtract(const Duration(days: 7, hours: 19)),
-          endTime: DateTime.now().subtract(const Duration(days: 7, hours: 23)),
-          circleName: 'Gaming Group',
-          circleId: 'c6',
-          circleColor: Colors.red.shade700,
-          attendees: 5,
-          isRsvpd: true,
-        ),
-        Event(
-          id: '7',
-          title: 'Emma\'s Surprise Birthday Party',
-          description: 'Celebrating Emma\'s 30th! Food, drinks, and dancing. Remember to arrive 30 mins early!',
-          location: 'Lakeside Restaurant, Private Room',
-          startTime: DateTime.now().subtract(const Duration(days: 14, hours: 19)),
-          endTime: DateTime.now().subtract(const Duration(days: 14, hours: 23)),
-          circleName: 'Close Friends',
-          circleId: 'c4',
-          circleColor: ThemeProvider.accentPeach,
-          attendees: 12,
-          isRsvpd: true,
-        ),
-        Event(
-          id: '8',
-          title: 'Tech Meetup: AI & Machine Learning',
-          description: 'Monthly tech talk featuring expert speakers and networking session',
-          location: 'Innovation Hub, Conference Center',
-          startTime: DateTime.now().subtract(const Duration(days: 21, hours: 18)),
-          endTime: DateTime.now().subtract(const Duration(days: 21, hours: 21)),
-          circleName: 'Tech Network',
-          circleId: 'c8',
-          circleColor: Colors.blue.shade800,
-          attendees: 15,
-          isRsvpd: true,
-        ),
-      ];
-      
-      _isLoading = false;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final allEvents = await _eventService.getEvents();
+      final now = DateTime.now();
+      
+      if (!mounted) return;
+      setState(() {
+        _upcomingEvents = allEvents.where((event) => event.startTime.isAfter(now)).toList();
+        _pastEvents = allEvents.where((event) => !event.startTime.isAfter(now)).toList();
+        
+        // Sort events: upcoming soonest first, past most recent first
+        _upcomingEvents.sort((a, b) => a.startTime.compareTo(b.startTime));
+        _pastEvents.sort((a, b) => b.startTime.compareTo(a.startTime));
+        
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+        // You could use ShadToaster here for a less intrusive error message
+        ShadToaster.of(context).show(
+          ShadToast.destructive(
+            title: const Text('Failed to load events'),
+            description: Text(_errorMessage ?? 'An unknown error occurred.'),
+          ),
+        );
+      });
+    }
   }
 
   void _handleCreateEvent() {
     HapticFeedback.mediumImpact();
     // TODO: Fetch actual available circles if needed for the dropdown
+    // For now, this just calls the dialog. Integration with event_matching_screen.dart will define the flow.
     showCreateEventMatchDialog(context, availableCircles: []);
+    // No need to _loadEvents() here until event creation actually happens and returns a status
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
-    final size = MediaQuery.of(context).size;
+    // final size = MediaQuery.of(context).size; // size is not used in the diff
     
     return Scaffold(
       body: LayoutBuilder(
@@ -225,7 +130,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                     padding: EdgeInsets.fromLTRB(hPadding, 16, hPadding, 0),
                     child: _buildAppBar(theme),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12), // Use const
                   Padding(
                     padding: EdgeInsets.fromLTRB(hPadding, 0, hPadding, 0),
                     child: _buildTabBar(theme),
@@ -233,13 +138,15 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                   Expanded(
                     child: _isLoading
                         ? _buildLoadingState(theme)
-                        : TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _buildEventsList(_upcomingEvents, theme, isUpcoming: true),
-                              _buildEventsList(_pastEvents, theme, isUpcoming: false),
-                            ],
-                          ),
+                        : _errorMessage != null
+                            ? _buildErrorState(theme)
+                            : TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  _buildEventsList(_upcomingEvents, theme, isUpcoming: true),
+                                  _buildEventsList(_pastEvents, theme, isUpcoming: false),
+                                ],
+                              ),
                   ),
                 ],
               ),
@@ -264,7 +171,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                Icons.event_rounded,
+                Icons.event_rounded, // Consider using HugeIcons here if available and desired
                 color: ThemeProvider.accentPeach,
                 size: 26,
               ),
@@ -284,14 +191,26 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
         Row(
           children: [
             _buildIconButton(
-              icon: Icons.search_rounded,
-              onPressed: () => HapticFeedback.lightImpact(),
+              icon: Icons.search_rounded, // Consider HugeIcons
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                // TODO: Implement search functionality
+                 ShadToaster.of(context).show(
+                  ShadToast(description: const Text('Search not implemented yet.')),
+                );
+              },
               theme: theme,
             ),
             const SizedBox(width: 8),
             _buildIconButton(
-              icon: Icons.filter_list_rounded,
-              onPressed: () => HapticFeedback.lightImpact(),
+              icon: Icons.filter_list_rounded, // Consider HugeIcons
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                // TODO: Implement filter functionality
+                ShadToaster.of(context).show(
+                  ShadToast(description: const Text('Filter not implemented yet.')),
+                );
+              },
               theme: theme,
             ),
           ],
@@ -307,13 +226,13 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.muted.withOpacity(0.1),
+        color: theme.colorScheme.muted.withOpacity(0.1), // Consider a slightly different muted or card variant
         borderRadius: BorderRadius.circular(12),
       ),
-      child: IconButton(
-        icon: Icon(icon, size: 22),
+      child: ShadButton.ghost( // Using ShadButton.ghost for better theme alignment and ripple
+        icon: Icon(icon, size: 22, color: theme.colorScheme.foreground),
         onPressed: onPressed,
-        color: theme.colorScheme.foreground,
+        // color: theme.colorScheme.foreground, // color is part of icon for ShadButton
       ),
     );
   }
@@ -352,7 +271,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.calendar_today_rounded,
+                      Icons.calendar_today_rounded, // Consider HugeIcons.calendar_02 or similar
                       size: 18,
                       color: _tabController.index == 0 ? ThemeProvider.accentPeach : theme.colorScheme.mutedForeground,
                     ),
@@ -380,7 +299,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(8),
                     bottomLeft: Radius.circular(8),
-                    topRight: Radius.circular(16),
+                    topRight: Radius.circular(16), // Maintain consistency
                     bottomRight: Radius.circular(16),
                   ),
                 ),
@@ -388,7 +307,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.history_rounded,
+                      Icons.history_rounded, // Consider HugeIcons.history_01 or similar
                       size: 18,
                       color: _tabController.index == 1 ? ThemeProvider.accentPeach : theme.colorScheme.mutedForeground,
                     ),
@@ -419,7 +338,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final crossAxisCount = width >= 900 ? 3 : width >= 600 ? 2 : 1;
-        final childAspectRatio = crossAxisCount == 1 ? 1.0 : 0.75;
+        final childAspectRatio = crossAxisCount == 1 ? (width < 400 ? 1.3 : 1.5) : 0.75; // Adjusted for single column
         final padding = width < 400 ? 12.0 : 20.0;
         final spacing = width < 400 ? 12.0 : 16.0;
         return GridView.builder(
@@ -430,12 +349,12 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
             mainAxisSpacing: spacing,
             childAspectRatio: childAspectRatio,
           ),
-          itemCount: 6,
+          itemCount: crossAxisCount == 1 ? 3 : 6, // Show fewer items in single column shimmer
           itemBuilder: (context, index) {
             return Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.card,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16), // Increased radius for card look
               ),
             ).animate(onPlay: (controller) => controller.repeat())
               .shimmer(duration: 1.5.seconds, color: theme.colorScheme.muted.withOpacity(0.1));
@@ -460,10 +379,13 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                 : width >= 600
                     ? 2
                     : 1;
-        final childAspectRatio = crossAxisCount > 1 ? 0.75 : 1.5;
+        final double cardHeightFactor = crossAxisCount == 1 ? (width < 400 ? 0.75 : 0.65) : 1.33; 
+        final childAspectRatio = width / (width / crossAxisCount * cardHeightFactor);
+
+
         final padding = width < 400 ? 12.0 : 20.0;
         final spacing = width < 400 ? 12.0 : 16.0;
-        final bottomPadding = spacing * 5;
+        final bottomPadding = spacing * 6; 
         return GridView.builder(
           physics: const BouncingScrollPhysics(),
           padding: EdgeInsets.fromLTRB(padding, padding, padding, bottomPadding),
@@ -479,6 +401,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
             return EventCard(
               event: event,
               isUpcoming: isUpcoming,
+              onRsvpUpdated: _loadEvents, // Pass the callback here
             ).animate(delay: (80 * index).ms)
               .fadeIn(duration: 400.ms)
               .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
@@ -500,7 +423,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
               borderRadius: BorderRadius.circular(100),
             ),
             child: Icon(
-              isUpcoming ? Icons.event_available_rounded : Icons.history_rounded,
+              isUpcoming ? Icons.event_available_rounded : Icons.history_rounded, // Consider HugeIcons
               color: ThemeProvider.accentPeach,
               size: 48,
             ),
@@ -509,7 +432,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
               .scale(duration: 400.ms, curve: Curves.easeOutBack),
           const SizedBox(height: 24),
           Text(
-            isUpcoming ? 'No Upcoming Events' : 'No Past Events',
+            isUpcoming ? 'No upcoming events yet. Why not create one and invite your circles?' // More engaging text
+                      : 'Your past events will appear here once you\'ve attended some.', // Escaped apostrophe
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -522,7 +446,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
               final w = MediaQuery.of(context).size.width;
               final boxWidth = w < 360 ? w * 0.8 : 280.0;
               return SizedBox(
-                width: boxWidth,
+                width: boxWidth, // Use max width more effectively
                 child: Text(
                   isUpcoming
                       ? 'Create a new event to start planning with your circles'
@@ -551,7 +475,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
         gradient: LinearGradient(
           colors: [
             ThemeProvider.accentPeach,
-            Color.lerp(ThemeProvider.accentPeach, Colors.red, 0.3) ?? ThemeProvider.accentPeach,
+            Color.lerp(ThemeProvider.accentPeach, Colors.red, 0.3) ?? ThemeProvider.accentPeach, // Consider slightly less red
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -559,7 +483,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: ThemeProvider.accentPeach.withOpacity(0.2),
+            color: ThemeProvider.accentPeach.withOpacity(0.3), // Slightly stronger shadow
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -567,15 +491,16 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
       ),
       child: ShadButton(
         onPressed: _handleCreateEvent,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent, // Gradient is on container
+        foregroundColor: Colors.white, // Ensure contrast
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        leading: const Icon(Icons.add_rounded, size: 20),
+        leading: const Icon(Icons.add_rounded, size: 20, color: Colors.white), // Ensure icon color
         child: const Text(
           'Create Event',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            color: Colors.white, // Ensure text color
           ),
         ),
       ),
@@ -596,5 +521,55 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     )
     .animate(delay: 400.ms)
     .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut);
+  }
+
+  Widget _buildErrorState(ShadThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.destructive.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Icon(
+                Icons.error_outline_rounded, // Consider HugeIcons.alert_triangle or similar
+                color: theme.colorScheme.destructive,
+                size: 48,
+              ),
+            ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+            const SizedBox(height: 24),
+            Text(
+              'Something Went Wrong',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.foreground,
+              ),
+            ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage ?? 'We couldn\'t load your events. Please check your connection and try again.', // Escaped apostrophe
+              style: TextStyle(
+                fontSize: 15,
+                color: theme.colorScheme.mutedForeground,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
+            const SizedBox(height: 32),
+            ShadButton(
+              onPressed: _loadEvents,
+              icon: const Icon(Icons.refresh_rounded, size: 18), // Consider HugeIcons.refresh_cw_01
+              child: const Text('Try Again'),
+            ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
+          ],
+        ),
+      ),
+    );
   }
 } 

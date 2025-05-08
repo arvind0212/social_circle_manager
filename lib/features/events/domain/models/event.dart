@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:social_circle_manager/core/theme/app_theme.dart'; // Assuming ThemeProvider might have default colors
 
 class Event {
   final String id;
@@ -12,6 +13,7 @@ class Event {
   final Color circleColor;
   final int attendees;
   final bool? isRsvpd;
+  final String? eventCreatorId; // Added field
 
   Event({
     required this.id,
@@ -25,7 +27,50 @@ class Event {
     required this.circleColor,
     required this.attendees,
     this.isRsvpd,
+    this.eventCreatorId, // Added field
   });
+
+  factory Event.fromJson(Map<String, dynamic> json) {
+    final String? rsvpStatus = json['user_rsvp_status'] as String?;
+    bool? rsvpd;
+    if (rsvpStatus == 'going') {
+      rsvpd = true;
+    } else if (rsvpStatus == 'not_going') {
+      rsvpd = false;
+    } else {
+      // 'maybe' or null will result in null
+      rsvpd = null;
+    }
+
+    return Event(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String? ?? '',
+      location: json['location'] as String? ?? 'Not specified',
+      startTime: DateTime.parse(json['start_time'] as String),
+      endTime: DateTime.parse(json['end_time'] as String),
+      circleId: json['circle_id'] as String,
+      circleName: json['circle_name'] as String? ?? 'Unknown Circle',
+      circleColor: _colorFromHex(json['circle_hex_color'] as String?) ?? ThemeProvider.primaryBlue, // Default color
+      attendees: (json['attendee_count'] as num?)?.toInt() ?? 0,
+      isRsvpd: rsvpd,
+      eventCreatorId: json['event_creator_id'] as String?,
+    );
+  }
+
+  static Color? _colorFromHex(String? hexColor) {
+    if (hexColor == null || hexColor.isEmpty) {
+      return null;
+    }
+    final hexCode = hexColor.replaceAll('#', '');
+    if (hexCode.length == 6) {
+      return Color(int.parse('FF$hexCode', radix: 16));
+    }
+    if (hexCode.length == 8) {
+      return Color(int.parse(hexCode, radix: 16));
+    }
+    return null;
+  }
 
   bool get isUpcoming => startTime.isAfter(DateTime.now());
 
