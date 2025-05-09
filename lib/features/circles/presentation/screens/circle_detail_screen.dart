@@ -608,6 +608,55 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           ).animate()
             .fadeIn(duration: 400.ms, delay: 400.ms)
             .slideY(begin: 0.2, end: 0, duration: 400.ms),
+          // Circle Preferences Pills
+          if (circle.commonActivities != null && circle.commonActivities!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double pillWidth = (constraints.maxWidth - 8) / 2;
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final activity in circle.commonActivities!.where((a) => a.trim().isNotEmpty))
+                        SizedBox(
+                          width: pillWidth,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: _getInterestColor(activity, theme).withOpacity(0.13),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _getActivityIcon(activity),
+                                  size: 16,
+                                  color: _getInterestColor(activity, theme),
+                                ),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    activity,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _getInterestColor(activity, theme).withOpacity(0.95),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

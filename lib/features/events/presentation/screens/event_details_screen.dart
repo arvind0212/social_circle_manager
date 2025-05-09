@@ -146,64 +146,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-  /// A tappable dropdown row to toggle the attendees list
-  Widget _buildAttendeesDropdown(ShadThemeData theme) {
-    return InkWell(
-      onTap: () => setState(() => _showGoingList = !_showGoingList),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.people_outline, color: theme.colorScheme.foreground, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Attendees (${widget.event.attendees})',
-                style: theme.textTheme.small.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.foreground,
-                ),
-              ),
-            ),
-            Icon(
-              _showGoingList ? Icons.expand_less : Icons.expand_more,
-              color: theme.colorScheme.foreground,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// A vertical list of attendee avatars and names
-  Widget _buildGoingList(ShadThemeData theme) {
-    // Sample names list; replace with real attendee data when available
-    final sampleNames = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eve', 'Frank'];
-    final names = sampleNames.take(widget.event.attendees).toList();
-    return Column(
-      children: names.map((name) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: widget.event.circleColor.withOpacity(0.2),
-                foregroundColor: widget.event.circleColor,
-                child: Text(
-                  name.substring(0, 1),
-                  style: theme.textTheme.small.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(name, style: theme.textTheme.small),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
@@ -360,12 +302,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               // Attendees section
               _buildAttendeesSection(theme).animate().fadeIn(duration: 400.ms, delay: 600.ms),
               const SizedBox(height: 20),
-              // Attendees dropdown toggle
-              _buildAttendeesDropdown(theme).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-              if (_showGoingList) ...[
-                const SizedBox(height: 12),
-                _buildGoingList(theme).animate().fadeIn(duration: 400.ms, delay: 800.ms),
-              ],
             ],
           ),
         ),

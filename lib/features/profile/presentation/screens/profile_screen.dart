@@ -26,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _avatarUrl;
   bool _isLoading = true;
   String _initials = '';
+  List<Map<String, dynamic>> _userAttributes = [];
 
   @override
   void initState() {
@@ -54,12 +55,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .eq('id', currentUser.id)
           .maybeSingle();
 
+      // Fetch user attributes (preferences/constraints)
+      final attributesResponse = await Supabase.instance.client
+          .from('user_attributes')
+          .select('attribute_type, description, source')
+          .eq('user_id', currentUser.id)
+          .order('created_at', ascending: false)
+          .limit(10);
+
       if (mounted) {
         setState(() {
           if (profileResponse != null) {
             _fullName = profileResponse['full_name'] as String?;
             _avatarUrl = profileResponse['avatar_url'] as String?;
           }
+          _userAttributes = List<Map<String, dynamic>>.from(attributesResponse);
           _updateInitials();
           _isLoading = false;
         });
@@ -372,6 +382,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: theme.textTheme.muted.copyWith(color: theme.colorScheme.mutedForeground)
                       ),
                     ),
+                    // User Preferences & Constraints
+                    const SizedBox(height: 12),
+                    if (_userAttributes.isNotEmpty)
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _userAttributes.map((attr) {
+                            final isPref = attr['attribute_type'] == 'preference';
+                            final color = isPref
+                                ? ThemeProvider.accentPeach
+                                : ThemeProvider.secondaryPurple;
+                            final icon = isPref
+                                ? Icons.favorite
+                                : Icons.schedule;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6.0),
+                              child: Tooltip(
+                                message: '${attr['attribute_type'] != null && attr['attribute_type'].toString().isNotEmpty ? attr['attribute_type'].toString()[0].toUpperCase() + attr['attribute_type'].toString().substring(1) : ''} (${attr['source']})',
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.13),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(icon, color: color, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        attr['description'] ?? '',
+                                        style: TextStyle(
+                                          color: color,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 12,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    if (_userAttributes.isEmpty)
+                      Center(
+                        child: Text(
+                          'No preferences set yet',
+                          style: theme.textTheme.muted.copyWith(color: theme.colorScheme.mutedForeground),
+                        ),
+                      ),
                     const SizedBox(height: 24),
                     ShadCard(
                       child: Column(

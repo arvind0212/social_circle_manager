@@ -298,18 +298,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          ShadButton.secondary(
-            onPressed: _navigateDirectlyToHome,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.home),
-                SizedBox(width: 8),
-                Text('Skip Directly to Home Screen'),
-              ],
-            ),
-          ),
         ],
       ),
     );

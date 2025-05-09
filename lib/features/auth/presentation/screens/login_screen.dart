@@ -56,9 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
           });
 
           ShadToaster.of(context).show(
-            ShadToast.destructive(
-              title: const Text('Login Successful'), // Changed to destructive for visibility
-              description: Text('Welcome back, ${res.user?.email ?? 'user'}!'), // Show user email
+            ShadToast(
+              title: const Text('Login Successful'),
+              description: Text('Welcome back!'),
             ),
           );
 
@@ -337,18 +337,33 @@ class _LoginScreenState extends State<LoginScreen> {
                               
                               const SizedBox(height: 20),
                               
-                              // Skip to Home button
-                              SizedBox(
-                                width: double.infinity,
-                                child: ShadButton.secondary(
-                                  onPressed: () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const HomeScreen()),
-                                    );
-                                  },
-                                  child: const Text('Skip Login & Go to Home'),
-                                ),
+                              // Don't have an account? Sign up button
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Don't have an account? ",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  ShadButton.link(
+                                    onPressed: () {
+                                      // Navigate to registration screen
+                                    },
+                                    child: Text(
+                                      'Sign up',
+                                      style: TextStyle(
+                                        color: ThemeProvider.primaryBlue,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ).animate().fadeIn(
+                                duration: 800.ms,
+                                curve: Curves.easeOut,
+                                delay: 400.ms,
                               ),
                             ],
                           ),
@@ -367,35 +382,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     
                     const SizedBox(height: 120), // Reduced offset to move form card up
-                    
-                    // Don't have an account? Sign up button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Don't have an account? ",
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                        ShadButton.link(
-                          onPressed: () {
-                            // Navigate to registration screen
-                          },
-                          child: Text(
-                            'Sign up',
-                            style: TextStyle(
-                              color: ThemeProvider.primaryBlue,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ).animate().fadeIn(
-                      duration: 800.ms,
-                      curve: Curves.easeOut,
-                      delay: 400.ms,
-                    ),
                     
                     const SizedBox(height: 40),
                   ],

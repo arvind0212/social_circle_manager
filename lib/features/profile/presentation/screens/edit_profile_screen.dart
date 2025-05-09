@@ -154,114 +154,175 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        backgroundColor: ThemeProvider.primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.only(right: 16.0),
-              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))),
-            )
-          else
-            ShadButton.ghost(
-              onPressed: _saveProfile,
-              child: Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            )
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ShadForm(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: _pickAvatar,
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenHeight = constraints.maxHeight;
+          final statusBarHeight = MediaQuery.of(context).viewPadding.top;
+          final width = constraints.maxWidth;
+          final hPadding = width < 600 ? 12.0 : 20.0;
+          return Stack(
+            children: [
+              Container(color: theme.colorScheme.background),
+              Positioned(
+                top: -screenHeight * 0.1,
+                right: -screenHeight * 0.1,
+                child: Container(
+                  width: screenHeight * 0.4,
+                  height: screenHeight * 0.4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: ThemeProvider.successGreen.withOpacity(0.05),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(hPadding, statusBarHeight + 16, hPadding, 16),
+                  child: Row(
                     children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.colorScheme.secondary.withOpacity(0.1),
-                          border: Border.all(color: theme.colorScheme.primary, width: 2)
-                        ),
-                        child: ClipOval(
-                          child: _pickedImageFile != null
-                              ? Image.file(_pickedImageFile!, fit: BoxFit.cover)
-                              : (_avatarUrlController.text.isNotEmpty
-                                  ? Image.network(
-                                      _avatarUrlController.text,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => ShadAvatar(
-                                        '',
-                                        placeholder: Text(
-                                          _initials,
-                                          style: theme.textTheme.h1.copyWith(color: theme.colorScheme.primaryForeground),
-                                        ),
-                                        backgroundColor: theme.colorScheme.primary,
-                                      ),
-                                    )
-                                  : ShadAvatar(
-                                      '',
-                                      placeholder: Text(
-                                        _initials,
-                                        style: theme.textTheme.h1.copyWith(color: theme.colorScheme.primaryForeground),
-                                      ),
-                                      backgroundColor: theme.colorScheme.primary,
-                                    )),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                        tooltip: 'Back',
                       ),
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
-                          shape: BoxShape.circle,
+                          color: ThemeProvider.successGreen.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Icon(Icons.edit, color: theme.colorScheme.primaryForeground, size: 20),
-                      )
+                        child: Icon(
+                          Icons.edit_outlined,
+                          color: ThemeProvider.successGreen,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Text(
+                        'Edit Profile',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.foreground,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_isLoading)
+                        const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      else
+                        ShadButton.ghost(
+                          onPressed: _saveProfile,
+                          child: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                ShadInputFormField(
-                  controller: _fullNameController,
-                  id: 'full-name',
-                  label: const Text('Full Name'),
-                  placeholder: const Text('Enter full name'),
-                  validator: (val) => val?.isEmpty == true ? 'Please enter your full name' : null,
-                  onChanged: (_) => setState(_updateInitials),
+              ),
+              Positioned.fill(
+                top: statusBarHeight + 80,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: ShadForm(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 20),
+                          GestureDetector(
+                            onTap: _pickAvatar,
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: theme.colorScheme.secondary.withOpacity(0.1),
+                                    border: Border.all(color: theme.colorScheme.primary, width: 2)
+                                  ),
+                                  child: ClipOval(
+                                    child: _pickedImageFile != null
+                                        ? Image.file(_pickedImageFile!, fit: BoxFit.cover)
+                                        : (_avatarUrlController.text.isNotEmpty
+                                            ? Image.network(
+                                                _avatarUrlController.text,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => ShadAvatar(
+                                                  '',
+                                                  placeholder: Text(
+                                                    _initials,
+                                                    style: theme.textTheme.h1.copyWith(color: theme.colorScheme.primaryForeground),
+                                                  ),
+                                                  backgroundColor: theme.colorScheme.primary,
+                                                ),
+                                              )
+                                            : ShadAvatar(
+                                                '',
+                                                placeholder: Text(
+                                                  _initials,
+                                                  style: theme.textTheme.h1.copyWith(color: theme.colorScheme.primaryForeground),
+                                                ),
+                                                backgroundColor: theme.colorScheme.primary,
+                                              )),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.edit, color: theme.colorScheme.primaryForeground, size: 20),
+                                )
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          ShadInputFormField(
+                            controller: _fullNameController,
+                            id: 'full-name',
+                            label: const Text('Full Name'),
+                            placeholder: const Text('Enter full name'),
+                            validator: (val) => val?.isEmpty == true ? 'Please enter your full name' : null,
+                            onChanged: (_) => setState(_updateInitials),
+                          ),
+                          const SizedBox(height: 16),
+                          ShadInputFormField(
+                            controller: _emailController,
+                            id: 'email',
+                            label: const Text('Email (cannot be changed)'),
+                            readOnly: true,
+                            enabled: false,
+                            style: TextStyle(color: theme.colorScheme.mutedForeground),
+                          ),
+                          const SizedBox(height: 16),
+                          ShadInputFormField(
+                            controller: _avatarUrlController,
+                            id: 'avatar-url',
+                            label: const Text('Avatar URL (or pick image above)'),
+                            placeholder: const Text('Enter avatar URL'),
+                            onChanged: (_) => setState((){_pickedImageFile = null;}),
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                ShadInputFormField(
-                  controller: _emailController,
-                  id: 'email',
-                  label: const Text('Email (cannot be changed)'),
-                  readOnly: true,
-                  enabled: false,
-                  style: TextStyle(color: theme.colorScheme.mutedForeground),
-                ),
-                const SizedBox(height: 16),
-                ShadInputFormField(
-                  controller: _avatarUrlController,
-                  id: 'avatar-url',
-                  label: const Text('Avatar URL (or pick image above)'),
-                  placeholder: const Text('Enter avatar URL'),
-                  onChanged: (_) => setState((){_pickedImageFile = null;}),
-                ),
-                const SizedBox(height: 30),
-              ],
-            ),
-          ),
-        ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
