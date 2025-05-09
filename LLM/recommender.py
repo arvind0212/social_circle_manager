@@ -238,6 +238,13 @@ async def get_recommendation_for_user_for_event(
 
     formatted_response = response.tool_calls[0]["args"]  # type: ignore
 
+    # --- PATCH: Convert 'unknown' or None values to a default RecommendationScoring dict ---
+    default_score = {"reasoning": "No data available.", "score": 5}
+    for key in ["constraint_time", "constraint_location", "constraint_other", "preference"]:
+        if key not in formatted_response or formatted_response[key] in ("unknown", None):
+            formatted_response[key] = default_score
+    # ---------------------------------------------------------------------------
+
     # Parse the response
     return RecommendationScoringFormatter(**formatted_response)  # type: ignore
 
@@ -456,4 +463,5 @@ async def rank_recommendations(
         final_ranked_list.append(response_item)
 
     final_ranked_list.sort(key=lambda x: x["score_total"], reverse=True)
-    return final_ranked_list
+    # Limit to top 5 recommendations
+    return final_ranked_list[:5]

@@ -379,13 +379,13 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                 : width >= 600
                     ? 2
                     : 1;
-        final double cardHeightFactor = crossAxisCount == 1 ? (width < 400 ? 0.75 : 0.65) : 1.33; 
+        // Use a moderate card height factor to keep cards compact but avoid overflow
+        final double cardHeightFactor = crossAxisCount == 1 ? 0.85 : 1.33;
         final childAspectRatio = width / (width / crossAxisCount * cardHeightFactor);
-
 
         final padding = width < 400 ? 12.0 : 20.0;
         final spacing = width < 400 ? 12.0 : 16.0;
-        final bottomPadding = spacing * 6; 
+        final bottomPadding = spacing * 2;
         return GridView.builder(
           physics: const BouncingScrollPhysics(),
           padding: EdgeInsets.fromLTRB(padding, padding, padding, bottomPadding),

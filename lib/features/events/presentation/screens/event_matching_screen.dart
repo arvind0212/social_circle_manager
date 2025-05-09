@@ -378,18 +378,20 @@ class _EventMatchingScreenState extends State<EventMatchingScreen> {
       return;
     }
 
-    print('Attempting to close voting session: $_currentMatchingSessionId');
+    print('Attempting to close voting session: [33m[1m[4m$_currentMatchingSessionId[0m');
     try {
-      await supabase
+      final response = await supabase
           .from('event_matching_sessions')
           .update({'status': 'closed'})
-          .eq('id', _currentMatchingSessionId!);
+          .eq('id', _currentMatchingSessionId!)
+          .select();
+      print('Update response: ' + response.toString());
       print('Successfully closed voting session: $_currentMatchingSessionId');
     } catch (e) {
       print('Error closing voting session in Supabase: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error closing voting session: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error closing voting session: [31m${e.toString()}[0m'), backgroundColor: Colors.red),
         );
       }
       return; // Stop if we can't close the session
@@ -416,7 +418,7 @@ class _EventMatchingScreenState extends State<EventMatchingScreen> {
       await supabase.from('events').insert(newEventData).select().single();
       
       if (mounted) {
-        Navigator.of(context).pop(true); // Pop EventMatchingScreen
+        Navigator.of(context).pop(true); // Pop EventMatchingScreen and signal success to parent
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

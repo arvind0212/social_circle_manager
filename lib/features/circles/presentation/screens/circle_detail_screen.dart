@@ -103,17 +103,18 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
       _activeSessionResults = null;
     });
 
-    print("Checking for active voting session for circle ${widget.circle.id}...");
+    print("Checking for active voting session for circle [36m${widget.circle.id}[0m...");
 
     try {
       // 1. Find the latest session with status 'voting_open' for this circle
       final List<dynamic> openSessions = await supabase
           .from('event_matching_sessions')
-          .select('id')
+          .select('id, status, created_at, updated_at')
           .eq('circle_id', widget.circle.id)
           .eq('status', 'voting_open')
           .order('created_at', ascending: false)
-          .limit(1);
+          .limit(5);
+      print('Open sessions for this circle: ' + openSessions.toString());
 
       if (openSessions.isNotEmpty && mounted) {
         final String sessionId = openSessions[0]['id'] as String;
@@ -1006,8 +1007,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardWidth = constraints.maxWidth > 600 ? 320.0 :
-                         constraints.maxWidth > 360 ? 280.0 : constraints.maxWidth - 48.0;
+        final cardWidth = constraints.maxWidth > 600 ? 332.0 :
+                         constraints.maxWidth > 360 ? 292.0 : constraints.maxWidth - 36.0;
         return SizedBox(
           height: 320,
           child: ListView.builder(
@@ -1877,10 +1878,11 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                     ),
                   ),
                 );
-
-                // Check if the result is true (indicating successful event creation)
-                if (result == true && mounted) {
-                  print("Returned from EventMatchingScreen with success, refreshing circle details...");
+                // Always refresh after returning from voting screen
+                if (mounted && result == true) {
+                  _fetchCircleDetails();
+                } else if (mounted) {
+                  // Even if result is false or null, re-fetch to guarantee poll state is up-to-date
                   _fetchCircleDetails();
                 }
               },
